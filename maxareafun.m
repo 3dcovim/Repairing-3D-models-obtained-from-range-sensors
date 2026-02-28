@@ -1,0 +1,132 @@
+function [x,pp]=maxareafun(p,vertices,dibuja_maxarea)
+%--------------------------------------
+%Prueba maximización de área
+%-------------------------------------
+
+%Definimos el polígono y repetimos el último pto por comodidad.
+
+num_vertices=length(p)-1;
+% global p, num_vertices;
+
+%desplazamos el cdg al origen
+cdg=mean(p,1);
+p=p-cdg(ones(length(p),1),:);
+
+
+%Lo dibujamos
+
+if (dibuja_maxarea==1)
+    subplot(1, 2, 1);
+
+    figure,plot3(p(:,1),p(:,2),p(:,3),'or','MarkerSize',10)
+    hold on; grid on;
+    title('Vision 3D');
+    for k=1:num_vertices
+        plot3(p(k:k+1,1),p(k:k+1,2),p(k:k+1,3),'--','LineWidth',2);
+    end
+    plot3(0, 0, 0,'*r');
+end
+
+
+
+
+%Definimos un eje de visión como el vector normal al plano que mejor se aproxima a los datos
+v_ini=princomp(p);
+%===============================================
+%Metemos algo de ruido
+%  ruido1=rotx(-0.3);
+%  ruido2=roty(0.4)
+%  v_ini=v_ini*ruido1(1:3,1:3)*ruido2(1:3,1:3);
+%==============================================
+if all(sign(cross(v_ini(:,1),v_ini(:,2))) ~= sign (v_ini(:,3)))
+    vertices(:,3) = -vertices(:,3);
+end
+
+
+if (dibuja_maxarea==1)
+
+    %Dibujamos el vector inicial y lo vemos todo desde el punto de vista
+    quiver3(0,0,0,v_ini(1,3),v_ini(2,3),v_ini(3,3),'LineWidth',2);
+    view(v_ini(:,3)')
+end
+
+
+
+%Calculamos el vector de proyección y representamos el polígono en el plano
+pp=(v_ini'*p')';
+
+
+if (dibuja_maxarea==1)
+
+    %Dibujo del polígono 2D
+    subplot(1, 2, 2);
+    plot(pp(:,1),pp(:,2),'ro','MarkerSize',10);
+    hold on; grid on;
+    title('Vision 2D')
+    for k=1:num_vertices
+        plot(pp(k:k+1,1),pp(k:k+1,2),'--','LineWidth',2);
+    end
+
+
+end
+
+
+%Area inicial
+area_ini=polyarea(pp(:,1), pp(:,2));
+
+%------------------------------
+%Definimos el problema de optimización
+
+x0 = v_ini(:,1:2);            % Make a starting guess at the solution
+
+options = optimset('LargeScale','off','Display','off','MaxFunEval',10000,'TolCon',1e-12,'TolFun',1e-12,'MaxIter',100);
+[x,fval] = fmincon(@funcion_objetivo,x0,[],[],[],[],[],[],...
+    @conf,options);
+x(:,1)=x(:,1)/norm(x(:,1));
+x(:,2)=x(:,2)/norm(x(:,2));
+x(:,3)=cross(x(:,1),x(:,2));
+%--------------------------------
+%Dibujamos para ver el resultado
+
+
+
+%Lo dibujamos
+
+if (dibuja_maxarea==1)
+
+
+    figure;
+    subplot(1, 2, 1);
+
+    plot3(p(:,1),p(:,2),p(:,3),'or','MarkerSize',10);
+    hold on; grid on;
+    title('Vision 3D');
+    for k=1:num_vertices
+        plot3(p(k:k+1,1),p(k:k+1,2),p(k:k+1,3),'--','LineWidth',2);
+    end
+    %Dibujamos el vector inicial y lo vemos todo desde el punto de vista
+    quiver3(0,0,0,x(1,3),x(2,3),x(3,3),'LineWidth',2);
+    view(x(:,3)');
+end
+
+%Calculamos el vector de proyección y representamos el polígono en el plano
+pp=(x'*p')';
+
+
+
+%Dibujo del polígono 2D
+if (dibuja_maxarea==1)
+
+    subplot(1, 2, 2);
+    plot(pp(:,1),pp(:,2),'ro','MarkerSize',10);
+    hold on; grid on;
+    title('Vision 2D');
+    for k=1:num_vertices
+        plot(pp(k:k+1,1),pp(k:k+1,2),'--','LineWidth',2);
+    end
+
+end
+
+
+
+area_fin=polyarea(pp(:,1), pp(:,2));

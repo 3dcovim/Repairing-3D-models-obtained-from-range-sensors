@@ -1,0 +1,589 @@
+function [aguje,terminar2,v,f,normales,h,camara]=Selecciona_agujero3(f,v,normales,h,camara)
+
+% numero_figura=10;
+%
+%
+% f2=figure(numero_figura);
+terminar2=0;
+clear ultimo_punto;
+clear ultimo_borde;
+global v;
+
+
+
+% scrsz = get(0,'ScreenSize'); %Vemos cuál es el tamaño de la pantalla
+%
+%
+% %Dibujamos malla 2
+%
+% f2=figure('Position',[scrsz(3)/2 scrsz(4)/5 scrsz(3)/2-10 scrsz(4)/2],'color',[1 1 1],'KeyPressFcn',@pulsatecla); %Creamos una figura de tamaño máximo y con fondo blanco
+% axis equal
+%
+% %set(gcf,'KeyPressFcn',@pulsatecla);
+%
+%
+% hold on;
+% %camara=get(gca,'CameraPosition');
+% cla;
+% set(gcf,'Color',[1 1 1]);%,'Position',[10 258   560   420]);
+% set(gca,'Visible','off');%,'CameraPosition',camara);
+% ppp = patch('faces', f, 'vertices' ,v, 'FaceAlpha', 1, 'VertexNormals', normales);
+%
+% set(ppp, 'facec', 'interp');                                                % Set the face color interp
+% set(ppp, 'FaceVertexCData', 0.5*ones(length(v),1));                                           % Set the color (from file)
+% %set(ppp, 'facealpha',.4)                                                 % Use for transparency
+% set(ppp, 'EdgeColor','k');
+% % light('Position',camara,'Style','infinite');
+% % light('Position',-camara,'Style','infinite');
+% %light('Position',[max(V(:,1)) 0 max(V(:,3))/2],'Style','infinite');     % add a default light
+% %light('Position',[-max(V(:,1)) 0 max(V(:,3))/2],'Style','infinite');
+% daspect([1 1 1])                                                        % Setting the aspect ratio
+% % view(3)
+% % Isometric view
+%
+%
+% % view(azim01,elev01);
+% set(gca,'CameraTarget',camara.objetivo);
+% set(gca,'CameraPosition',camara.posicion);
+% set(gca,'CameraViewAngle',camara.angulo);
+%
+%
+% drawnow;
+%
+% c2 = datacursormode(f2);
+% set(c2,'DisplayStyle','window','SnapToDataVertex','on')
+% rotate3d on
+%
+%
+% datacursormode on;
+%
+% cameratoolbar('Show');
+% cameratoolbar('ToggleSceneLight');
+% cameramenu;
+% camlight;
+% lighting phong;
+
+
+[ppp,c2]=Representa_Malla(v,f,normales,camara);
+set(gcf,'windowbuttondownfcn','[agujeros,ultimo_borde,filu_anterior]=update(v,puntos_bordes,agujeros,ultimo_borde,filu_anterior);');
+
+axis manual; % Prevent resize
+
+set(gca,'projection','o');
+
+% Markers
+selection_marker = line('marker','o','markerfacecolor','k','erasemode','xor','visible','off');
+selection_vertex = line('marker','o','markerfacecolor','k','erasemode','xor','visible','off');
+selection_face = line('marker','o','markerfacecolor','k','erasemode','xor','visible','off');
+
+setappdata(gcf,'selection_marker',selection_marker);
+setappdata(gcf,'selection_vertex',selection_vertex);
+setappdata(gcf,'selection_face',selection_face);
+
+
+
+
+
+
+
+agujeros=[];
+
+% figure(f2),hold on
+for k=1:length(h)
+    dibu=plot3(v(h{k},1),v(h{k},2),v(h{k},3),'b','LineWidth',2);
+    agujeros=[agujeros;dibu];
+end
+
+filu_anterior=0;
+
+
+
+
+
+
+
+
+ptos2=[];
+puntos_bordes=cell2mat(h);
+str2='Seleccionar vértices de objeto 2';
+opcion=menu('Acciones','Eliminar Duplicados','Eliminar Aislados','Eliminar Non-manifolds','Eliminar desconectados','Seleccionar borde', 'Rellenar','Salir');
+terminar=(opcion==7)||(opcion==6);
+% [azim01,elev01]=view;
+camara.posicion = get(gca,'CameraPosition');
+camara.angulo = get(gca,'CameraViewAngle');
+camara.objetivo = get(gca,'CameraTarget');
+% if (opcion==2)
+%     if(~(exist(filu_anterior))||(filu_anterior==0))
+%         msgbox('No se seleccionó ningún borde','ATENCION');
+%     else
+%         terminar=1;
+%     end
+% end
+%     terminar=0;
+while ~terminar
+    if opcion==5
+        info2=getCursorInfo(c2);
+        if  ~isempty(info2)
+
+            %             ptos2=[ptos2;info2.Position];
+            %             color_pto=rand(1,3);
+
+            %             figure(f2),hold on
+            %             plot3(ptos2(end,1),ptos2(end,2),ptos2(end,3),'o','MarkerEdgeColor','k',...
+            %                 'MarkerFaceColor',color_pto,...
+            %                 'MarkerSize',10)
+
+            punto_select=info2.Position;
+
+            distancias_bor=sqrt(sum((v(puntos_bordes',:)-punto_select(ones(length(puntos_bordes),1),:)).^2,2));
+            [filob,colob]=min(distancias_bor);
+            [filw,colw]=find(colob-cumsum(cellfun('length',h))>0);
+
+            if(~isempty(colw))
+                [filu,colu]=max(colw);
+                filu=filu+1;
+            else
+                filu=1;
+            end
+            if(distancias_bor(colob)<20)
+                %                 set(agujeros(filu),'Visible','off');
+
+                if(filu~=filu_anterior)
+                    delete(agujeros(filu));
+
+                    if(exist('ultimo_punto'))
+                        delete(ultimo_punto);
+                        clear ultimo_punto;
+                    end
+                    if(exist('ultimo_borde'))
+                        delete(ultimo_borde);
+                        clear ultimo_borde;
+                    end
+                    if(filu_anterior~=0)
+                        agujeros(filu_anterior)=plot3(v(h{filu_anterior},1),v(h{filu_anterior},2),v(h{filu_anterior},3),'b','LineWidth',2);
+                    end
+
+                    ultimo_borde=plot3(v(h{filu},1),v(h{filu},2),v(h{filu},3),'r','LineWidth',5);
+                end
+                filu_anterior=filu;
+
+
+
+            else
+                ptos2=[ptos2;info2.Position];
+                color_pto='y';
+                if(exist('ultimo_punto'))
+                    delete(ultimo_punto);
+                    clear ultimo_punto;
+                end
+                if(exist('ultimo_borde'))
+                    delete(ultimo_borde);
+                    clear ultimo_borde;
+                end
+%                 figure(f2),hold on
+                ultimo_punto=plot3(ptos2(end,1),ptos2(end,2),ptos2(end,3),'o','MarkerEdgeColor','k',...
+                    'MarkerFaceColor',color_pto,...
+                    'MarkerSize',10);
+                if(filu_anterior~=0)
+                    agujeros(filu_anterior)=plot3(v(h{filu_anterior},1),v(h{filu_anterior},2),v(h{filu_anterior},3),'b','LineWidth',2);
+                end
+
+
+            end
+        end
+    elseif opcion==1
+        [v,f]=meshcheckrepair(v,f,'duplicated');
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%% REPRESENTACION NUEVA
+        %%%%%%%%%%%%%%%%%%%%%%%%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        delete(ppp);
+        if(~isempty(h))
+            delete(dibu);
+        end
+        h=EncuentraHuecos(f,v,0,0);
+
+        if(length(normales)~=length(v))
+            [normales,normalesf] = compute_normal(v,f);
+            normales=normales';
+        end
+
+        %         close(f2);
+        %         f2=figure('Position',[scrsz(3)/2 scrsz(4)/5 scrsz(3)/2-10 scrsz(4)/2],'color',[1 1 1],'KeyPressFcn',@pulsatecla); %Creamos una figura de tamaño máximo y con fondo blanco
+        %         axis equal
+        %         hold on;
+        %         %camara=get(gca,'CameraPosition');
+        %         cla;
+        %         set(gcf,'Color',[1 1 1]);%,'Position',[10 258   560   420]);
+        %         set(gca,'Visible','off');%,'CameraPosition',camara);
+        %         ppp = patch('faces', f, 'vertices' ,v, 'FaceAlpha', 1, 'VertexNormals', normales);
+        %         set(ppp, 'facec', 'interp');
+        %         set(ppp, 'FaceVertexCData', 0.5*ones(length(v),1));
+        %         set(ppp, 'EdgeColor','k');
+        %         daspect([1 1 1]);
+        %
+        %
+        %
+        %         %         view(azim01,elev01);
+        %         set(gca,'CameraTarget',camara.objetivo);
+        %         set(gca,'CameraPosition',camara.posicion);
+        %         set(gca,'CameraViewAngle',camara.angulo);
+        %
+        %
+        %
+        %         drawnow;
+        %
+        %
+        %         c2 = datacursormode(f2);
+        %         set(c2,'DisplayStyle','window','SnapToDataVertex','on')
+        %         rotate3d on
+        %         datacursormode on;
+        %         cameratoolbar('Show');
+        %         cameratoolbar('ToggleSceneLight');
+        %         cameramenu;
+        %         camlight;
+        %         lighting phong;
+
+        [ppp,c2]=Representa_Malla(v,f,normales,camara);
+        agujeros=[];
+        for k=1:length(h)
+            dibu=plot3(v(h{k},1),v(h{k},2),v(h{k},3),'b','LineWidth',2);
+            agujeros=[agujeros;dibu];
+        end
+        filu_anterior=0;
+
+
+
+        ptos2=[];
+        puntos_bordes=cell2mat(h);
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%% FIN REPRESENTACION NUEVA
+        %%%%%%%%%%%%%%%%%%%%%%%%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+    elseif opcion==2
+        [v,f]=meshcheckrepair(v,f,'isolated');
+        %         delete(ppp);
+        %         ppp = patch('faces', f, 'vertices' ,v, 'FaceAlpha', 1, 'VertexNormals', normales);
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%% REPRESENTACION NUEVA
+        %%%%%%%%%%%%%%%%%%%%%%%%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        delete(ppp);
+        if(~isempty(h))
+            delete(dibu);
+        end
+        h=EncuentraHuecos(f,v,0,0);
+        if(length(normales)~=length(v))
+            [normales,normalesf] = compute_normal(v,f);
+            normales=normales';
+        end
+
+
+        %         close(f2);
+        %         f2=figure('Position',[scrsz(3)/2 scrsz(4)/5 scrsz(3)/2-10 scrsz(4)/2],'color',[1 1 1],'KeyPressFcn',@pulsatecla); %Creamos una figura de tamaño máximo y con fondo blanco
+        %         axis equal
+        %         hold on;
+        %         %camara=get(gca,'CameraPosition');
+        %         cla;
+        %         set(gcf,'Color',[1 1 1]);%,'Position',[10 258   560   420]);
+        %         set(gca,'Visible','off');%,'CameraPosition',camara);
+        %         ppp = patch('faces', f, 'vertices' ,v, 'FaceAlpha', 1, 'VertexNormals', normales);
+        %         set(ppp, 'facec', 'interp');
+        %         set(ppp, 'FaceVertexCData', 0.5*ones(length(v),1));
+        %         set(ppp, 'EdgeColor','k');
+        %         daspect([1 1 1]);
+        %         %         view(azim01,elev01);
+        %         set(gca,'CameraTarget',camara.objetivo);
+        %         set(gca,'CameraPosition',camara.posicion);
+        %         set(gca,'CameraViewAngle',camara.angulo);
+        %         drawnow;
+        %         c2 = datacursormode(f2);
+        %         set(c2,'DisplayStyle','window','SnapToDataVertex','on')
+        %         rotate3d on
+        %         datacursormode on;
+        %
+        %         cameratoolbar('Show');
+        %         cameratoolbar('ToggleSceneLight');
+        %         cameramenu;
+        %         camlight;
+        %         lighting phong;
+
+        [ppp,c2]=Representa_Malla(v,f,normales,camara);
+        agujeros=[];
+        for k=1:length(h)
+            dibu=plot3(v(h{k},1),v(h{k},2),v(h{k},3),'b','LineWidth',2);
+            agujeros=[agujeros;dibu];
+        end
+        filu_anterior=0;
+
+
+
+
+        ptos2=[];
+        puntos_bordes=cell2mat(h);
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%% FIN REPRESENTACION NUEVA
+        %%%%%%%%%%%%%%%%%%%%%%%%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    elseif opcion==3
+        [v,f]=meshcheckrepair(v,f,'deep');
+        %         delete(ppp);
+        %         ppp = patch('faces', f, 'vertices' ,v, 'FaceAlpha', 1, 'VertexNormals', normales);
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%% REPRESENTACION NUEVA
+        %%%%%%%%%%%%%%%%%%%%%%%%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        delete(ppp);
+        if(~isempty(h))
+            delete(dibu);
+        end
+        h=EncuentraHuecos(f,v,0,0);
+        if(length(normales)~=length(v))
+            [normales,normalesf] = compute_normal(v,f);
+            normales=normales';
+        end
+
+
+        %         close(f2);
+        %         f2=figure('Position',[scrsz(3)/2 scrsz(4)/5 scrsz(3)/2-10 scrsz(4)/2],'color',[1 1 1],'KeyPressFcn',@pulsatecla); %Creamos una figura de tamaño máximo y con fondo blanco
+        %         axis equal
+        %         hold on;
+        %         %camara=get(gca,'CameraPosition');
+        %         cla;
+        %         set(gcf,'Color',[1 1 1]);%,'Position',[10 258   560   420]);
+        %         set(gca,'Visible','off');%,'CameraPosition',camara);
+        %         ppp = patch('faces', f, 'vertices' ,v, 'FaceAlpha', 1, 'VertexNormals', normales);
+        %         set(ppp, 'facec', 'interp');
+        %         set(ppp, 'FaceVertexCData', 0.5*ones(length(v),1));
+        %         set(ppp, 'EdgeColor','k');
+        %         daspect([1 1 1]);
+        %         %         view(azim01,elev01);
+        %         set(gca,'CameraTarget',camara.objetivo);
+        %         set(gca,'CameraPosition',camara.posicion);
+        %         set(gca,'CameraViewAngle',camara.angulo);
+        %         drawnow;
+        %         c2 = datacursormode(f2);
+        %         set(c2,'DisplayStyle','window','SnapToDataVertex','on')
+        %         rotate3d on
+        %         datacursormode on;
+        %         cameratoolbar('Show');
+        %         cameratoolbar('ToggleSceneLight');
+        %         cameramenu;
+        %         camlight;
+        %         lighting phong;
+
+        [ppp,c2]=Representa_Malla(v,f,normales,camara);
+        agujeros=[];
+        for k=1:length(h)
+            dibu=plot3(v(h{k},1),v(h{k},2),v(h{k},3),'b','LineWidth',2);
+            agujeros=[agujeros;dibu];
+        end
+        filu_anterior=0;
+
+
+        ptos2=[];
+        puntos_bordes=cell2mat(h);
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%% FIN REPRESENTACION NUEVA
+        %%%%%%%%%%%%%%%%%%%%%%%%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    elseif opcion==4
+        gruposcaras=finddisconnsurf(f);
+        if (size(gruposcaras,2)>1)
+            islotes=cellfun('length',gruposcaras);
+            [islamax,indisla]=max(islotes);
+            [filmax,colmax]=find(islotes<islamax*0.10);
+            islasvalidas=setdiff(1:length(islotes),colmax);
+            f=[];
+            for indimax=1:(length(islasvalidas))
+                f=[f;gruposcaras{1,islasvalidas(indimax)}];
+            end
+
+            disp(['Se han eliminado ' num2str((size(gruposcaras,2)-1)) ' grupos']);
+        end
+
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%% REPRESENTACION NUEVA
+        %%%%%%%%%%%%%%%%%%%%%%%%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        delete(ppp);
+        if(~isempty(h))
+            delete(dibu);
+        end
+        h=EncuentraHuecos(f,v,0,0);
+        if(length(normales)~=length(v))
+            [normales,normalesf] = compute_normal(v,f);
+            normales=normales';
+        end
+
+
+        %         close(f2);
+        %         f2=figure('Position',[scrsz(3)/2 scrsz(4)/5 scrsz(3)/2-10 scrsz(4)/2],'color',[1 1 1],'KeyPressFcn',@pulsatecla); %Creamos una figura de tamaño máximo y con fondo blanco
+        %         axis equal
+        %         hold on;
+        %         %camara=get(gca,'CameraPosition');
+        %         cla;
+        %         set(gcf,'Color',[1 1 1]);%,'Position',[10 258   560   420]);
+        %         set(gca,'Visible','off');%,'CameraPosition',camara);
+        %         ppp = patch('faces', f, 'vertices' ,v, 'FaceAlpha', 1, 'VertexNormals', normales);
+        %         set(ppp, 'facec', 'interp');
+        %         set(ppp, 'FaceVertexCData', 0.5*ones(length(v),1));
+        %         set(ppp, 'EdgeColor','k');
+        %         daspect([1 1 1]);
+        %         %         view(azim01,elev01);
+        %         set(gca,'CameraTarget',camara.objetivo);
+        %         set(gca,'CameraPosition',camara.posicion);
+        %         set(gca,'CameraViewAngle',camara.angulo);
+        %         drawnow;
+        %         c2 = datacursormode(f2);
+        %         set(c2,'DisplayStyle','window','SnapToDataVertex','on')
+        %         rotate3d on
+        %         datacursormode on;
+        %         cameratoolbar('Show');
+        %         cameratoolbar('ToggleSceneLight');
+        %         cameramenu;
+        %         camlight;
+        %         lighting phong;
+
+
+        [ppp,c2]=Representa_Malla(v,f,normales,camara);
+        agujeros=[];
+        for k=1:length(h)
+            dibu=plot3(v(h{k},1),v(h{k},2),v(h{k},3),'b','LineWidth',2);
+            agujeros=[agujeros;dibu];
+        end
+        filu_anterior=0;
+
+
+        ptos2=[];
+        puntos_bordes=cell2mat(h);
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%% FIN REPRESENTACION NUEVA
+        %%%%%%%%%%%%%%%%%%%%%%%%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+    end
+    opcion=menu('Acciones','Eliminar Duplicados','Eliminar Aislados','Eliminar Non-manifolds','Eliminar desconectados','Seleccionar borde', 'Rellenar','Salir');
+    terminar=(opcion==7)||(opcion==6);
+    %     [azim01,elev01]=view;
+    camara.posicion = get(gca,'CameraPosition');
+    camara.angulo = get(gca,'CameraViewAngle');
+    camara.objetivo = get(gca,'CameraTarget');
+    % if (opcion==2)
+    %     if(~(exist(filu_anterior))||(filu_anterior==0))
+    %         msgbox('No se seleccionó ningún borde','ATENCION');
+    %     else
+    %         terminar=1;
+    %     end
+    % end
+
+end
+
+
+aguje=filu_anterior;
+if(~(aguje>0))
+    disp('No se seleccionó ningún borde');
+end
+if(opcion==7)
+    terminar2=1;
+end
+
+
+
+end
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+function [agujeros,ultimo_borde,filu_anterior]=update(v,puntos_bordes,agujeros,ultimo_borde,filu_anterior)
+cameramenu('close');
+punto_seleccionado = select3d(gco);
+
+if isempty(punto_seleccionado)
+    return
+end
+
+selection_marker = getappdata(gcf,'selection_marker');
+selection_vertex = getappdata(gcf,'selection_vertex');
+selection_face = getappdata(gcf,'selection_face');
+
+set(selection_marker,'visible','on','xdata',punto_seleccionado(1),'ydata',punto_seleccionado(2),'zdata',punto_seleccionado(3));
+
+% set(selection_vertex,'visible','on','xdata',v(1),'ydata',v(2),'zdata',v(3));
+disp(sprintf('\nX: %.2f\nY: %.2f\nZ: %.2f',punto_seleccionado(1),punto_seleccionado(2),punto_seleccionado(3)'))
+
+if  ~isempty(punto_seleccionado)
+
+    %             ptos2=[ptos2;info2.Position];
+    %             color_pto=rand(1,3);
+
+    %             figure(f2),hold on
+    %             plot3(ptos2(end,1),ptos2(end,2),ptos2(end,3),'o','MarkerEdgeColor','k',...
+    %                 'MarkerFaceColor',color_pto,...
+    %                 'MarkerSize',10)
+
+    punto_select=punto_seleccionado;
+
+    distancias_bor=sqrt(sum((v(puntos_bordes',:)-punto_select(ones(length(puntos_bordes),1),:)).^2,2));
+    [filob,colob]=min(distancias_bor);
+    [filw,colw]=find(colob-cumsum(cellfun('length',h))>0);
+
+    if(~isempty(colw))
+        [filu,colu]=max(colw);
+        filu=filu+1;
+    else
+        filu=1;
+    end
+    if(distancias_bor(colob)<20)
+        %                 set(agujeros(filu),'Visible','off');
+
+        if(filu~=filu_anterior)
+            delete(agujeros(filu));
+
+            if(exist('ultimo_punto'))
+                delete(ultimo_punto);
+                clear ultimo_punto;
+            end
+            if(exist('ultimo_borde'))
+                delete(ultimo_borde);
+                clear ultimo_borde;
+            end
+            if(filu_anterior~=0)
+                agujeros(filu_anterior)=plot3(v(h{filu_anterior},1),v(h{filu_anterior},2),v(h{filu_anterior},3),'b','LineWidth',2);
+            end
+
+            ultimo_borde=plot3(v(h{filu},1),v(h{filu},2),v(h{filu},3),'r','LineWidth',5);
+        end
+        filu_anterior=filu;
+
+
+
+    else
+        ptos2=[ptos2;info2.Position];
+        color_pto='y';
+        if(exist('ultimo_punto'))
+            delete(ultimo_punto);
+            clear ultimo_punto;
+        end
+        if(exist('ultimo_borde'))
+            delete(ultimo_borde);
+            clear ultimo_borde;
+        end
+        %                 figure(f2),hold on
+        ultimo_punto=plot3(ptos2(end,1),ptos2(end,2),ptos2(end,3),'o','MarkerEdgeColor','k',...
+            'MarkerFaceColor',color_pto,...
+            'MarkerSize',10);
+        if(filu_anterior~=0)
+            agujeros(filu_anterior)=plot3(v(h{filu_anterior},1),v(h{filu_anterior},2),v(h{filu_anterior},3),'b','LineWidth',2);
+        end
+
+
+    end
+end
+
+
+%%%%
+
+end

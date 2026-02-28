@@ -1,0 +1,119 @@
+function [vertices_trans,nuevas_caras2,traduce_caras,matriz_trans]=cambia_sistema(vertices_eleg,caras_parche,normal_puntos,vertices_parche,caras,matriztrans)
+
+
+% %%%% definicion del nuevo sistema de coordenadas
+% nuevas_caras=[];
+% nuevas_caras2=[];
+% nuevas_caras_n=[];
+% traduce_caras=[];
+% nuevas_caras_est=cell(1,1);
+% indicaras_est=1;
+% filas_re=[];
+%
+% datos_prueba=0;
+%
+[ssfil,sscol]=max([max(vertices_eleg(:,1))-min(vertices_eleg(:,1)) max(vertices_eleg(:,2))-min(vertices_eleg(:,2)) max(vertices_eleg(:,3))-min(vertices_eleg(:,3))]);
+[ddfilx,ddcolx]=max(vertices_eleg(:,sscol));
+[ddfiln,ddcoln]=min(vertices_eleg(:,sscol));
+
+vectorxx=vertices_eleg(ddcolx,1)-vertices_eleg(ddcoln,1);
+vectorxy=vertices_eleg(ddcolx,2)-vertices_eleg(ddcoln,2);
+vectorxz=-(normal_puntos(1,1)*vectorxx+normal_puntos(1,2)*vectorxy)/normal_puntos(1,3);
+
+vectorx=[vectorxx vectorxy vectorxz];
+vectorx=vectorx./norm(vectorx);
+vectorz=normal_puntos./norm(normal_puntos);
+vectory=cross(vectorz,vectorx);
+if(length(matriztrans)>1)
+    matriz_trans=matriztrans;
+    
+else
+    matriz_trans=[vectorx' vectory' vectorz' vertices_eleg(ddcoln,:)';0 0 0 1];
+end
+
+%
+%
+% for huyo=1:length(vertices_eleg)
+%     [fff,ccc]=find(caras==vertices_parche(huyo));
+%     caras_sel=caras(fff,:);
+%
+%     %%%%%%%%%%% Eliminar vértices que no son realmente del parche.
+%     vector_caras_sel=[caras_sel(:,1);caras_sel(:,2);caras_sel(:,3)];
+%     [CCC,III]=setdiff(vector_caras_sel,vertices_parche);
+%     if(~isempty(CCC))
+%         for induji=1:size(CCC,2)
+%             [filre,colre]=find(vector_caras_sel==CCC(1,induji));
+%             filas_re=[filas_re;filre];
+%         end
+%         III=filas_re';
+%         caras_sel(sort(unique(III'-(floor(III/(size(caras_sel,1)))'-(mod(III,size(caras_sel,1))'==0))*size(caras_sel,1))),:)=[];
+%         filas_re=[];
+%     end
+%
+%     for guyo=1:size(caras_sel,1)
+%         cara_sel=sort(caras_sel(guyo,:));
+%         cara_sel_n=caras_sel(guyo,:);
+%         if(~isempty(nuevas_caras))
+%             if(all(sum(nuevas_caras==cara_sel(ones(size(nuevas_caras,1),1),:),2)~=3))
+%
+%                 nuevas_caras=[nuevas_caras;cara_sel];
+%                 nuevas_caras_n=[nuevas_caras_n;cara_sel_n];
+%
+%
+%                 for juyo=1:3
+%                     [filan,colun]=find(vertices_parche==cara_sel_n(1,juyo));
+%                     cara_sel2(1,juyo)=colun;
+%                 end
+%                 nuevas_caras2=[nuevas_caras2;cara_sel2];
+%                 traduce_caras=[traduce_caras;cara_sel_n];
+%                 nuevas_caras_est{1,indicaras_est}=cara_sel2;
+%                 indicaras_est=indicaras_est+1;
+%             else
+%                 datos_prueba=datos_prueba+1;
+%             end
+%         else
+%             nuevas_caras=[nuevas_caras;cara_sel];
+%             nuevas_caras_n=[nuevas_caras_n;cara_sel_n];
+%             for juyo=1:3
+%                 [filan,colun]=find(vertices_parche==cara_sel_n(1,juyo));
+%                 cara_sel2(1,juyo)=colun;
+%             end
+%             nuevas_caras2=[nuevas_caras2;cara_sel2];
+%             traduce_caras=[traduce_caras;cara_sel_n];
+%             nuevas_caras_est{1,indicaras_est}=cara_sel2;
+%             indicaras_est=indicaras_est+1;
+%         end
+%     end
+%     nueva_coordenada=[vertices_eleg(huyo,:) 1]*matriz_trans;
+%     vertices_trans(huyo,:)=nueva_coordenada(1,1:3);
+% end
+%
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% AÑADIDO 25-11-09
+nuevas_caras2=zeros(size(caras_parche));
+for huyo=1:length(vertices_eleg)
+    nueva_coordenada=[vertices_eleg(huyo,:) 1]*matriz_trans;
+    vertices_trans(huyo,:)=nueva_coordenada(1,1:3);
+    %         [fff,ccc]=find(caras_parche==vertices_parche(huyo));
+    nuevas_caras2(caras_parche==vertices_parche(huyo))=huyo;
+
+end
+[filto,colto]=find(nuevas_caras2==0);
+nuevas_caras2(filto,:)=[];
+traduce_caras=caras_parche();
+traduce_caras(filto,:)=[];
+% nuevas_caras_est=mat2cell(nuevas_caras2,ones(length(nuevas_caras2),1),3)';
+
+
+%%%%% FIN AÑADIDO 25-11-09
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

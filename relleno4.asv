@@ -1,0 +1,642 @@
+function relleno4(nombre_malla,automatico,parametros)
+
+%%%%%%%%% Función para la detección y rellenado de huecos de mallas 3D de
+%%%%%%%%% un fichero VRML, OFF, ASC, OBJ, PLY Binario, STL, MAT
+%%%%%%%%%
+%%%%%%%%%
+%%%%%%%%% relleno('nombre_de_malla',AUTOMATICO,PARAMETROS)
+%%%%%%%%%         habrá que definir la variable path_mallas para indicar la
+%%%%%%%%%         localización de ese fichero
+%%%%%%%%%
+%%%%%%%%% parametros de la funcion relleno
+%%%%%%%%% 'nombre_de_malla' Nombre del archivo con la extension
+%%%%%%%%%         habrá que definir la variable path_mallas para indicar la
+%%%%%%%%%         localización de ese fichero
+%%%%%%%%%
+%%%%%%%%%
+%%%%%%%%% AUTOMATICO  1 Relleno automatico de todos los huecos
+%%%%%%%%%             0 Seleccion de huecos
+%%%%%%%%%
+%%%%%%%%%
+%%%%%%%%% PARAMETROS vector de diversos parámetros del algoritmo
+%%%%%%%%%  [extension_parche parte foe iteraciones]
+%%%%%%%%% Poner 0 si se desean dejar los valores por defecto
+%%%%%%%%%
+%%%%%%%%% - extension_parche Numero de niveles de vecindad que se cogen para
+%%%%%%%%%                    generar el parche o seccion de malla que contiene
+%%%%%%%%%                    el hueco a rellenar. Se introduce un valor
+%%%%%%%%%                    bajo, en torno a 8, para mallas de baja
+%%%%%%%%%                    densidad, y en torno a 20, para mallas de alta
+%%%%%%%%%                    densidad.(Por Defecto:10)
+%%%%%%%%% - parte            Coeficiente que determina el ancho del pixel
+%%%%%%%%%                    que se utilizará para generar la imagen de rango.
+%%%%%%%%%                    Si se iguala a 1 el ancho de pixel será igual a
+%%%%%%%%%                    la distancia media de las aristas de la malla.
+%%%%%%%%%                    Por debajo de 1, el ancho de pixel se va
+%%%%%%%%%                    haciendo mas grande. Por encima, mas pequeño.
+%%%%%%%%%                   (Por Defecto:1)
+%%%%%%%%% - foe              Seleccion del método utilizado para el
+%%%%%%%%%                    algoritmo de image inpainting. El 1 es un
+%%%%%%%%%                    método con menor grado de aprendizaje, más
+%%%%%%%%%                    rápido. El 2, tiene mayor grado de
+%%%%%%%%%                    aprendizaje, y por lo tanto es más preciso
+%%%%%%%%%                    aunque más lento.(Por Defecto:1)
+%%%%%%%%% - iteraciones      Fija el número de iteraciones que se aplicarán
+%%%%%%%%%                    en el algoritmo de image inpainting. Un valor
+%%%%%%%%%                    en torno a 1000 es suficiente para mallas de
+%%%%%%%%%                    media-baja densidad. Habrá que incrementarlo
+%%%%%%%%%                    cuanto más densidad tenga la malla. (2000 o
+%%%%%%%%%                    3000). (Por Defecto:1000)
+
+
+%%%%%%%% PARAMETROS DE CONFIGURACION DEL PROGRAMA.
+general_excel=0;  %% Generacion de una hoja excel con datos de tiempos,areas, huecos.
+fichero_excel='rellenos2';  %% Nombre del fichero excel
+graba_curvatura=0; %% Se calcula la curvatura Total y Gaussiana antes y despues
+%%% del rellenado
+genera_intermedio=0; %% Se va almacenando, en formato .mat, la malla cada vez
+%%% que se rellena e integra un hueco.
+num_h_rellenar=15;  %% numero minimo de vértices que compongan un borde de hueco
+%%% para que sea rellenado. Los bordes que tengan menos
+%%% de num_h_rellenar vertices no seran rellenados.
+
+
+
+%%%%% INICIALIZACION DE VARIABLES
+camara.posicion=0; %%%%Posicion inicial de la camara
+camara.angulo= 0;  %%%% Angulo inicial de la camara
+camara.objetivo=0; %%%% Objetivo inicial de la camara
+primera_ejecucion=1;
+visualizacion.aristas=1;
+factor_limite=0;
+unidad=[1 1 1];
+amplificacion=1;
+desplazamiento=1e-15;
+
+new_interfaz=1;  %%%%% INTERFAZ NUEVA
+selec_automatic_parche=automatico;  %%%%% NO INTERFAZ NUEVA
+
+
+huecos_selec=-1;
+
+
+
+
+
+
+
+
+
+%%%% INICIALIZACION DE PARAMETROS DE ENTRADA
+if(parametros==0)
+    extension_parche=10;
+    parte=1;
+    foe=1;
+    iteraciones=1000;
+    parametros=[extension_parche parte foe iteraciones];
+else
+    extension_parche=parametros(1,1);
+    parte=parametros(1,2);
+    foe=parametros(1,3);
+    iteraciones=parametros(1,4);
+end
+%%%% FIN INICIALIZACION DE PARAMETROS DE ENTRADA
+
+
+%%%% Load mesh to be filled
+[vertices,caras,normales,terminar,extension,nombre_fichero,path_mallas,path_intermedio]=load_mesh_to_fill(nombre_malla)
+
+
+
+
+
+
+%%%% Si se está en modo automático, una vez cargado el fichero, se le
+%%%% aplicara la función de reparación de la malla.
+if(automatico==1)&&(~(strcmp(extension,'.mat')))
+    [vertices,caras]=Repara_malla(vertices,caras);
+end
+
+
+if(~(strcmp(extension,'.mat')))
+    
+    %%% Se detectan los huecos de la malla cuyo borde tenga más de
+    %%% num_h_rellenar vértices.
+    h_modify=EncuentraHuecos(caras,vertices,0,num_h_rellenar);
+    num_h_inicial=length(h_modify);
+    h_inicial=h_modify;
+    h_procesados=0; %%Numero de huecos que van siendo rellenados.
+    
+    if(~isempty(h_modify))
+        terminar=0;
+        
+        %%%% INICIO GRABACION DATOS EN HOJA EXCEL
+        if(general_excel)
+            M={'MALLA',nombre_malla;'Nº HUECOS',num_h_inicial};
+            %         [statu, message] = xlswrite([path_mallas 'rellenos'], M, nombre_malla,'A1');
+            xlswrite([path_mallas fichero_excel], M, nombre_malla, 'A1');
+            eval('!taskkill /F /IM EXCEL.EXE');
+            indica_hoja=3;
+        end
+        %%%% FIN GRABACION DATOS EN HOJA EXCEL
+        
+    else
+        terminar=1;
+    end
+    
+end
+
+%%%% Se crea el directorio donde se almacenan los datos de salida.
+if(genera_intermedio||graba_curvatura)
+    if(~isdir([path_intermedio]))
+        mkdir([path_intermedio]);
+    end
+end
+
+%%%% Calculo y almacenamiento de la curvatura inicial (Total y Gaussiana)
+if(graba_curvatura)&&(~(strcmp(extension,'.mat')))
+    GrabaCurvatura(vertices,caras,[path_intermedio nombre_fichero '_curv_i']);
+end
+
+
+
+
+%%%% SELECCION DEL AGUJERO.
+if (~automatico)
+    if(new_interfaz==0)
+        [aguje,terminar,vertices,caras,normales,h_modify,camara]=Selecciona_agujero2(caras,vertices,normales,h_modify,camara);
+    else
+        huecos_selec=[];
+        interfaz_nueva=relleno_interfaz(caras,vertices,normales,h_modify,camara,visualizacion,selec_automatic_parche,extension_parche);
+        valores = getappdata(interfaz_nueva);
+        valores2= getappdata(valores.OpenFig_gifE2x0zafretni_oneller_SINGLETON);
+        valores3=valores2.UsedByGUIData_m;
+        while(~valores3.output)
+            valores2= getappdata(valores.OpenFig_gifE2x0zafretni_oneller_SINGLETON);
+            valores3=valores2.UsedByGUIData_m;
+            pause(0.000001);
+        end
+        aguje=valores3.aguje;
+        terminar=valores3.terminar2;
+        vertices=valores3.vertices;
+        caras=valores3.caras;
+        normales=valores3.normales;
+        h_modify=valores3.h_modify;
+        camara=valores3.camara;
+        selec_automatic_parche=valores3.selec_automatic_parche;
+        extension_parche=valores3.extension_parche;
+        huecos_selec=valores3.huecos_selec;
+        if(~isempty(huecos_selec))
+        aguje=huecos_selec(1);
+        end
+        close(valores3.figure1);
+        
+        
+    end
+    
+    
+elseif(~(strcmp(extension,'.mat')))
+    aguje=1;
+end
+
+
+vertices_huecos=[];
+caras_huecos=[];
+
+
+
+while (~terminar)
+    
+    %%%% INICIO GRABACION DATOS EN HOJA EXCEL
+    if(general_excel)
+        M={'HUECO',aguje};
+        %         [status, message] = xlswrite([path_mallas 'rellenos'], M, nombre_malla,['A' num2str(indica_hoja)]);
+        xlswrite([path_mallas fichero_excel],M,nombre_malla,['A' num2str(indica_hoja)]);
+        eval('!taskkill /F /IM EXCEL.EXE');
+        indica_hoja=indica_hoja+1;
+    end
+    %%%% FIN GRABACION DATOS EN HOJA EXCEL
+    
+    
+    borde_hueco=h_modify{1,aguje}; %%% Definicion del borde de hueco para el agujero actual
+    
+    %%% Variable utilizada para tener en cuenta la curvatura en la definicion
+    %%% del entorno del hueco (o porcion de malla circundante al hueco).
+    Cmax=0;
+    
+    %%%% Se extrae una porcion de malla de una determinada extensión
+    %%%% definida en los parámetros de entrada. Esa extensión se basa en la
+    %%%% vecindad dentro de la malla triangular.
+    
+    %%%% Se calcula el punto de vista que hace que la proyección del hueco
+    %%%% sobre el plano XY de visión sea máxima. Como resultado obtenemos
+    %%%% la matriz de transformación y el vector normal
+    dibuja_maxarea=0;  %%% Variable que controla la visualización de resultados de la funcion de calculo de area maxima
+    [matriztrans,normal_puntos]=maxareafun2(vertices(h_modify{1,aguje},:),vertices,normales,borde_hueco,dibuja_maxarea);
+%       [matriztrans,normal_puntos]=maxareafun3(vertices(h_modify{1,aguje},:),vertices_borde_ext,vertices,normales,borde_hueco,dibuja_maxarea);
+  
+    
+    
+    
+    
+    if(selec_automatic_parche==1)
+        
+%         tic
+        [vertices_parche,caras_parche]=define_parche2(vertices,caras,normales,borde_hueco,extension_parche,Cmax,factor_limite);
+%         toc
+%         
+%         
+%         
+%         [connectividad,connnumeros,count_vecinos]=meshconn(caras,length(vertices));
+%         tic
+%        [vertices_parche,caras_parche]=define_parche3(vertices,caras,normales,borde_hueco,extension_parche,Cmax,factor_limite,connectividad);
+%    toc
+%         
+   
+   
+   
+   
+   
+   vertices_eleg=vertices(vertices_parche,:); %% Coordenadas de los vertices de la porción de malla.
+        
+        
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%BARRA DE ESPERA
+        if (automatico==0)
+            barra_espera = waitbar(0,'Rellenando...');
+            steps = 4+floor(3230/250);
+            step_ini=0;
+        end
+        %%%%%FIN DE BARRA DE ESPERA
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        
+        
+        
+        
+        
+        
+        %     p_ini=vertices(h_modify{1,aguje},:);
+        %     p=vertices(h_modify{1,aguje},:);
+        %     [x,pp]=maxareafun(p,vertices,dibuja_maxarea);
+        %     centrodgp=mean(pp);
+        %     centrodg=mean(p_ini);
+        %     transla=(centrodgp-centrodg)';
+        %     matriztrans=[x -transla;0 0 0 1];
+        %     normal_puntos=x(:,3)';
+        %     normal_puntos=sign(dot(mean(normales(borde_hueco,:)),normal_puntos)).*normal_puntos;
+        
+        tic; %% INICIO CALCULO DEL TIEMPO DE EXTRACCION DE LA PORCION DE MALLA
+        
+        
+        %%%% Se cambia el sistema de referencia de los vértices que componen la
+        %%%% porción de malla extraída. Se recalcula la lista de caras en
+        %%%% referencia a la lista de vértices que componen dicha porción.
+        [vertices_trans,nuevas_caras2,traduce_caras,matriz_trans]=cambia_sistema(vertices_eleg,caras_parche,normal_puntos,vertices_parche,caras,matriztrans);
+        [filun,colun]=find(traduce_caras==borde_hueco(1,2));
+        punto_traducido=nuevas_caras2(filun(1,1),colun(1,1));
+        
+        
+        
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%BARRA DE ESPERA
+        if (automatico==0)
+            waitbar(1 / steps);
+        end
+        %%%%%FIN DE BARRA DE ESPERA
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        %%%% Se aplica una nueva transformación a la malla. Se ha de
+        %%%% desplazarla a niveles cercanos al plano (a cero). Se referencian
+        %%%% con respecto a un máximo (amplificación). Se desplazan un
+        %%%% infinitesimal para que ningun punto alcance el valor 0 de
+        %%%% profundidad.
+        vector_trans=min(vertices_trans);
+        
+        vertices_seccion2=amplificacion*(vertices_trans-vector_trans(ones(length(vertices_trans),1),:))+desplazamiento*unidad(ones(length(vertices_trans),1),:);
+        
+        tiempo_parche=toc; %% FIN CALCULO DEL TIEMPO DE EXTRACCION DE LA PORCION DE MALLA
+        
+        %%%% INICIO GRABACION DATOS EN HOJA EXCEL
+        if(general_excel)
+            M={'T.parche',tiempo_parche};
+            [status, message] = xlswrite([path_mallas fichero_excel], M, nombre_malla,['A' num2str(indica_hoja)]);
+            eval('!taskkill /F /IM EXCEL.EXE');
+            indica_hoja=indica_hoja+1;
+        end
+        %%%% FIN GRABACION DATOS EN HOJA EXCEL
+        
+        tic;%% INICIO CALCULO DEL TIEMPO DE GENERACION DE LA IMAGEN DE RANGO
+        
+        %%%% Se calcula la imagen de rango correspondiente a la proyección de
+        %%%% la porción de malla sobre el plano Z=0. Por otra parte se
+        %%%% determina la mascara de los agujeros de dicha porción.
+        [ImaRanInterp,celdasX,celdasY,mascarapol2,agujeros,agujero_actual,minimanew,caras_rango,resolucion]=genera_imagen_rango2(vertices_seccion2,nuevas_caras2,parte,borde_hueco(1,1),punto_traducido);
+        
+        tiempo_rango=toc;%% FIN CALCULO DEL TIEMPO DE GENERACION DE LA IMAGEN DE RANGO
+        
+        
+    else
+        %     [vertices_parche,caras_parche] = selec_parche(vertices,caras,normales,borde_hueco,extension_parche,Cmax);
+        
+        selecciona_extension=selec_parche(vertices,caras,normales,borde_hueco,extension_parche,Cmax,camara,matriztrans,normal_puntos,parte);
+        valores = getappdata(selecciona_extension);
+        valores2= getappdata(valores.OpenFig_gifE2x0ehcrap_celes_SINGLETON);
+        valores3=valores2.UsedByGUIData_m;
+        while(~valores3.output)
+            valores2= getappdata(valores.OpenFig_gifE2x0ehcrap_celes_SINGLETON);
+            valores3=valores2.UsedByGUIData_m;
+            pause(0.000001);
+        end
+        vertices_parche=valores3.vertices_parche;
+        caras_parche=valores3.caras_parche;
+        vertices_seccion2=valores3.vertices_seccion2;
+        caras_rango=valores3.caras_rango;
+        ImaRanInterp=valores3.ImaRanInterp;
+        celdasX=valores3.celdasX;
+        celdasY=valores3.celdasY;
+        mascarapol2=valores3.mascarapol2;
+        agujeros=valores3.agujeros;
+        agujero_actual=valores3.agujero_actual;
+        minimanew=valores3.minimanew;
+        vertices_trans=valores3.vertices_trans;
+        matriz_trans=valores3.matriz_trans;
+        vector_trans=valores3.vector_trans;
+        nuevas_caras2=valores3.nuevas_caras2;
+        traduce_caras=valores3.traduce_caras;
+        
+        close(valores3.figure1);
+        barra_espera = waitbar(0,'Rellenando...');
+        steps = 4+floor(3230/250);
+        step_ini=0;
+    end
+    
+    
+    
+    
+    
+    
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%BARRA DE ESPERA
+    if (automatico==0)
+        waitbar(2 / steps);
+    end
+    %%%%%FIN DE BARRA DE ESPERA
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    
+    
+    %%%% INICIO GRABACION DATOS EN HOJA EXCEL
+    if(general_excel)
+        M={'T.rango',tiempo_rango;'Resolucion',resolucion;'A.parche',bwarea(ImaRanInterp>0);'A.hueco',bwarea(mascarapol2)};
+        [status, message] = xlswrite([path_mallas fichero_excel], M, nombre_malla,['A' num2str(indica_hoja)]);
+        eval('!taskkill /F /IM EXCEL.EXE');
+        indica_hoja=indica_hoja+4;
+    end
+    %%%% FIN GRABACION DATOS EN HOJA EXCEL
+    
+    
+    if(agujero_actual~=0)
+        
+        tic;%% INICIO CALCULO DEL TIEMPO DE INPAINTING Y TRIANGULACIÓN
+        %%%% Se le aplica el algoritmo de image inpainting a la imagen de
+        %%%% rango, teniendo en cuenta la mascara obtenida. A continuación
+        %%%% se realiza la triangulación de los nuevos puntos calculados.
+        [verticesNew,carasNew,vertices_agujero,carastri,vertices_relleno,caras_relleno]=regenera_inpainting3(vertices_seccion2,caras_rango,ImaRanInterp,celdasX,celdasY,mascarapol2,agujeros,agujero_actual,minimanew,foe,iteraciones);
+        %     verticesNew=verticesNew-vector_trans(ones(length(verticesNew),1),:);
+        tiempo_relleno=toc;%% FIN CALCULO DEL TIEMPO DE INPAINTING Y TRIANGULACIÓN
+        
+        
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%BARRA DE ESPERA
+        if (automatico==0)
+            waitbar(3 / steps);
+        end
+        %%%%%FIN DE BARRA DE ESPERA
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        
+        %%%% INICIO GRABACION DATOS EN HOJA EXCEL
+        if(general_excel)
+            M={'T.relleno',tiempo_relleno};
+            [status, message] = xlswrite([path_mallas fichero_excel], M, nombre_malla,['A' num2str(indica_hoja)]);
+            eval('!taskkill /F /IM EXCEL.EXE');
+            indica_hoja=indica_hoja+1;
+        end
+        %%%% FIN GRABACION DATOS EN HOJA EXCEL
+        
+        
+        
+        
+        
+        %%%% Se calculan las transformaciones para retornar al sistema de
+        %%%% referencia inicial (el del objeto total).
+        verticesNew2=verticesNew(vertices_agujero(1,1):vertices_agujero(1,2),:);
+        verticesNew2=verticesNew;
+        verticesNew2=((verticesNew2-desplazamiento*unidad(ones(length(verticesNew2),1),:))./amplificacion)+vector_trans(ones(length(verticesNew2),1),:);
+        [vert_recambia]=cambia_sistema_retorno(verticesNew2,matriz_trans);
+        %     vertices_agujeros=[vertices_agujeros;length(vertices)+1 length(vertices)+1+(vertices_agujero(1,2)-vertices_agujero(1,1))];
+        %%%% Se traduce la indexaxión de la lista de nuevas caras, para que
+        %%%% hagan referencia a la lista total de vertices (del objeto
+        %%%% total)
+        
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%BARRA DE ESPERA
+        if (automatico==0)
+            waitbar(4 / steps);
+        end
+        %%%%%FIN DE BARRA DE ESPERA
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        
+        
+        [fffil,cccol]= find(carastri<vertices_agujero(1,1));
+        [fffil2,cccol2]= find(carastri>=vertices_agujero(1,1));
+        for indux=1:length(fffil)
+            [fffi,ccco]=find(nuevas_caras2==carastri(fffil(indux),cccol(indux)));
+            carastri(fffil(indux),cccol(indux))=traduce_caras(fffi(1),ccco(1));
+        end
+        for indux=1:length(fffil2)
+            carastri(fffil2(indux),cccol2(indux))=carastri(fffil2(indux),cccol2(indux))-vertices_agujero(1,1)+1+length(vertices);
+        end
+        
+        %%%% Se integran los vertices y caras en la lista total (del objeto
+        %%%% completo)
+        vertices=[vertices;vert_recambia(vertices_agujero(1,1):vertices_agujero(1,2),:)];
+        %         vertices=[vertices;vert_recambia];
+        caras=[caras;carastri];
+        %     caras_agujeros=[caras_agujeros;carastri];
+        
+        %%%% Se van almacenando por separado las porciones de malla
+        %%%% calculadas, que rellenan los huecos.
+        caras_huecos=[caras_huecos;caras_relleno+size(vertices_huecos,1)];
+        vertices_huecos=[vertices_huecos;vert_recambia(vertices_agujero(1,1):vertices_agujero(1,2),:);vertices(h_modify{1,aguje}(1:end-1),:)];
+        
+    end
+    
+    if(~isempty(huecos_selec))
+        huecos_selec(1)=[];
+    end
+    if(exist('barra_espera'))      
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%BARRA DE ESPERA
+        close(barra_espera);
+        %%%%%FIN DE BARRA DE ESPERA
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%))
+    end
+    
+    
+    if ((automatico==0)&&(isempty(huecos_selec)))
+        %%%% Se eliminan las caras oscilantes del relleno. Las caras que
+        %%%% solo comparten una arista con un triangulo.
+        disp('Se detectan las caras oscilantes del relleno generado');
+        caras=EliminaOscilantes(caras);
+        %%%% Se repite la detección de huecos.
+        h_modify=EncuentraHuecos(caras,vertices,0,num_h_rellenar);
+        [normales,normalesf] = compute_normal(vertices,caras);
+        normales=normales';
+        
+
+        
+        
+        
+        %%%% Se selecciona el siguiente agujero a rellenar (modo manual)
+        if(new_interfaz==0)
+            [aguje,terminar,vertices,caras,normales,h_modify,camara]=Selecciona_agujero2(caras,vertices,normales,h_modify,camara);
+        else
+            interfaz_nueva=relleno_interfaz(caras,vertices,normales,h_modify,camara,visualizacion,selec_automatic_parche,extension_parche);
+            valores = getappdata(interfaz_nueva);
+            valores2= getappdata(valores.OpenFig_gifE2x0zafretni_oneller_SINGLETON);
+            valores3=valores2.UsedByGUIData_m;
+            while(~valores3.output)
+                valores2= getappdata(valores.OpenFig_gifE2x0zafretni_oneller_SINGLETON);
+                valores3=valores2.UsedByGUIData_m;
+                pause(0.000001);
+            end
+            aguje=valores3.aguje;
+            terminar=valores3.terminar2;
+            vertices=valores3.vertices;
+            caras=valores3.caras;
+            normales=valores3.normales;
+            h_modify=valores3.h_modify;
+            camara=valores3.camara;
+            selec_automatic_parche=valores3.selec_automatic_parche;
+            extension_parche=valores3.extension_parche;
+            huecos_selec=valores3.huecos_selec;
+                    huecos_selec=valores3.huecos_selec;
+                            if(~isempty(huecos_selec))
+
+        aguje=huecos_selec(1);
+                            end
+            close(valores3.figure1);
+            
+            
+        end        % aguje=1;terminar=0;
+    else
+        %%%% Rellenado automatico con reparacion de la malla
+        %         [vertices,caras]=Repara_malla(vertices,caras);
+        %         h_modify=EncuentraHuecos(caras,vertices,0,10);
+        %%%% Fin Rellenado automatico con reparacion de la malla
+        % if(length(h_modify)>0)
+        %%%% Paso a el siguiente agujero.
+        if(~isempty(h_modify))
+            aguje=aguje+1;
+            
+            aguje=huecos_selec(1);
+        else
+            terminar=1;
+        end
+    end
+    
+    %%%% Se termina la ejecución si ya no quedan mas huecos por rellenar o,
+    %%%% en modo automático, si se han procesados un 10% más de huecos que
+    %%%% los que se detectaron en el inicio.
+    if(aguje>length(h_modify))||(h_procesados>num_h_inicial*10)
+        terminar=1;
+    end
+    
+    primera_ejecucion=0;
+    h_procesados=h_procesados+1; %% Nº de huecos que se han rellenado
+    
+    %%%% Si se ha activado este modo, se almacenara el estado de la malla
+    %%%% cada vez que se procesa un hueco.
+    if(genera_intermedio)
+        path_intermedio=[path_mallas nombre_fichero '\'];
+        save([path_intermedio nombre_fichero '_' num2str(h_procesados)], 'caras', 'vertices','normales','h_modify','aguje','h_procesados');
+    end
+    % end
+end
+
+
+
+if(h_procesados>0)
+    %%%% Creación del directorio de trabajo.
+    if(~isdir([path_intermedio]))
+        mkdir([path_intermedio]);
+    end
+    %%%% INICIO DEFINICION NOMBRE DE ARCHIVO
+    if(automatico==0)
+        nombre_archivo = input(['Nombre del archivo([ENTER] ' nombre_malla '_rellena'   '):'],'s');
+        if(isempty(nombre_archivo))
+            nombre_archivo=[nombre_fichero];
+        end
+        nombre_archivo=[path_intermedio nombre_archivo];
+        
+    else
+        nombre_archivo=[path_intermedio nombre_fichero];
+        %%%% En modo automático se aplican los algoritmos de reparación de
+        %%%% la malla antes de guardar los resultados.
+        [vertices,caras]=Repara_malla(vertices,caras);
+        %         [vertices_huecos,caras_huecos]=Repara_malla(vertices_huecos,caras_huecos);
+        
+    end
+    cadena_mas=[num2str(parametros(1,1)) ' ' num2str(parametros(1,2)) ' ' num2str(parametros(1,3)) ' ' num2str(parametros(1,4))];
+    %%%% FIN DEFINICION NOMBRE DE ARCHIVO
+    
+    %%%% Se graban las mallas resultantes: malla total rellena y malla
+    %%%% correspodiente sólamente a los huecos generados.
+    if (strcmp(extension,'.wrl'))
+        aresnew=indexedfaceset('vertices',vertices,'connectivity',caras);
+        savevrml(aresnew,[nombre_archivo '_rellena_' cadena_mas '.wrl']);
+        aresnew=indexedfaceset('vertices',vertices_huecos,'connectivity',caras_huecos);
+        savevrml(aresnew,[nombre_archivo '_' cadena_mas '_huecos_' '.ply']);
+    elseif (strcmp(extension,'.off'))
+        %     options.method = 'slow';
+        %     caras = perform_faces_reorientation(vertices,caras, options);
+        %         carastempo=caras;
+        %         caras=[carastempo(:,2) carastempo(:,1) carastempo(:,3)];
+        saveoff(vertices,caras,[nombre_archivo '_rellena_' cadena_mas '.off']);
+        saveoff(vertices_huecos,caras_huecos,[nombre_archivo '_' cadena_mas '_huecos_' '.ply']);
+    elseif (strcmp(extension,'.asc'))
+        saveasc(vertices,caras,[nombre_archivo '_rellena_' cadena_mas '.off']);
+        saveasc(vertices_huecos,caras_huecos,[nombre_archivo '_' cadena_mas '_huecos_' '.ply']);
+    elseif (strcmp(extension,'.ply'))
+        write_ply(vertices,caras,[nombre_archivo '_rellena_' cadena_mas '.ply'], 'binary_big_endian');
+        write_ply(vertices_huecos,caras_huecos,[nombre_archivo '_' cadena_mas '_huecos_' '.ply'], 'binary_big_endian');
+    end
+     
+    %%%% Se calcula y graba la curvatura de la malla rellena.
+    if(graba_curvatura)
+        GrabaCurvatura(vertices,caras,[path_intermedio nombre_fichero '_curv_f']);
+    end
+end
+
+
+close all;
+
+end
+
+

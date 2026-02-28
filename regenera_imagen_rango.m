@@ -1,0 +1,40 @@
+hueco_principal=((mascarapol2&(~ImagenRangoSin)));
+reimagenrango=zeros(size(ImagenRangoSin));
+SE = strel('square', 3);
+terminar=0;
+% find(relleno_imagen.*imdilate(hueco_principal,SE)>0);
+% relleno_imagen(find(relleno_imagen.*imdilate(hueco_principal,SE)>0));
+while(~terminar)
+    extension=imdilate(hueco_principal,SE);
+    anillo=extension&~hueco_principal;
+    hueco_principal=extension;
+    contenedores=setdiff(sort(unique(relleno_imagen.*anillo)),0);
+    if(isempty(contenedores))
+        terminar=1;
+    else
+        if(contenedores(1)==1)
+            reimagenrango(relleno_imagen==1)=cell2mat(ImagenRangocell(relleno_imagen==1));
+        end
+        for relind=2:size(contenedores,1)
+            [fildor,coldor]=find(relleno_imagen.*extension==contenedores(relind));
+            arellenar=[];
+            
+            for indul=1:size(fildor,1)
+                select_envir=zeros(size(reimagenrango));
+                select_envir(fildor(indul),coldor(indul))=1;
+                entorno=setdiff(reimagenrango((imdilate(select_envir,SE)&~select_envir)),0);
+                arellenar=[ arellenar;fildor(indul) coldor(indul) mean(entorno) length(entorno)];
+                
+            end
+            [yyy,iii]=sort(arellenar(:,4));
+            arellenar=arellenar(iii,:);
+            for indalo=1:size(arellenar,1)
+                [minimo,indimo]=min(ImagenRangocell{arellenar(indalo,1),arellenar(indalo,2)}-arellenar(indalo,3));
+                reimagenrango(arellenar(indalo,1),arellenar(indalo,2))=ImagenRangocell{arellenar(indalo,1),arellenar(indalo,2)}(indimo);
+            end
+            
+            
+        end
+    end
+end
+    % reimagenrango(relleno_imagen.*extension==1)=cell2mat(ImagenRangocell(relleno_imagen.*extension==1));

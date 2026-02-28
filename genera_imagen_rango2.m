@@ -1,0 +1,379 @@
+function [ImaRanInterp,celdasX,celdasY,mascarapol2,agujeros,agujero_actual,minimanew,caras,resolucion]=genera_imagen_rango2(vertices_seccion2,caras,parte,punto_original,punto_traducido,image_interp)
+
+
+%%%%REGENERACION DE LA IMAGEN DE RANGO EN FUNCION DE LA OCUPACION OPTIMA
+regenimran=0;
+
+
+% Se ordenan las coordenadas en el sentido descendente de los valores X
+
+[verticesX,indiceX]=sort(vertices_seccion2(:,1),1,'descend');
+verticesY=vertices_seccion2(indiceX,2);
+verticesZ=vertices_seccion2(indiceX,3);
+
+%%%%%% Conversión inversa de vertices ordenados en lista de vertices
+[verinv,convinv]=sort(indiceX,1,'ascend');
+
+
+% Se determina el rango de variación de las coordenadas segun los ejes X, Y
+% y Z.
+
+max_en_x=max(max(vertices_seccion2(:,1)));
+max_en_y=max(max(vertices_seccion2(:,2)));
+max_en_z=max(max(vertices_seccion2(:,3)));
+min_en_x=min(min(vertices_seccion2(:,1)));
+min_en_y=min(min(vertices_seccion2(:,2)));
+min_en_z=min(min(vertices_seccion2(:,3)));
+rangoY=max_en_y-min_en_y;
+rangoX=max_en_x-min_en_x;
+rangoZ=max_en_z-min_en_z;
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%% CALCULO DE LA MEDIA DE LAS DISTANCIAS DE LAS ARISTAS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+caraslista=caras;
+aristaslista=[caraslista(:,1) caraslista(:,2);caraslista(:,2) caraslista(:,3);caraslista(:,3) caraslista(:,1)];
+aristaslista=unique(aristaslista,'rows');
+terminoX=(abs(vertices_seccion2(aristaslista(:,2),1)-vertices_seccion2(aristaslista(:,1),1))).^2;
+terminoY=(abs(vertices_seccion2(aristaslista(:,2),2)-vertices_seccion2(aristaslista(:,1),2))).^2;
+terminoZ=(abs(vertices_seccion2(aristaslista(:,2),3)-vertices_seccion2(aristaslista(:,1),3))).^2;
+distancias=sqrt(terminoX+terminoY+terminoZ);
+distancias2D=sqrt(terminoX+terminoY);
+% La variable 'parte' se utiliza como factor que divide a la media de las
+% distancias. Cuyo valor se fija de forma experimental
+% Calculo de la media de las diferentes distancias (3d, proyectada, X,Y) y
+% aplicacion del factor 'parte'
+
+distmedia=mean(distancias)/parte;
+% distmedia=mean(distancias2D)/parte;
+
+
+% distmediaX=mean(distanciasX)/parte;
+% distmediaY=mean(distanciasY)/parte;
+
+
+% Se fijan los anchos de las celdas que discretizaran las información 3d de
+% la nube de puntos en una matriz
+
+% resolX=distmedia;
+% resolY=distmedia;
+% resolZ=distmedia;
+resolucion=distmedia;
+celdasX=min_en_x:resolucion:max_en_x;
+celdasY=max_en_y:-resolucion:min_en_y;
+% celdasZ=min_en_z:resolZ:max_en_z;
+
+% En estas variables se iran almacenando los indices (a las coordenadas
+% ordenadas en X) que van cayendo en los diferentes segmentos X,Y y Z,
+% discretizados segun las resoluciones resolX, resolY y resolZ,
+% respectivamente.
+
+Xenceldas=[];
+Yenceldas=[];
+% Zenceldas=[];
+
+Xpatron=ones(1,length(celdasX));
+Ypatron=ones(1,length(celdasY));
+% Zpatron=ones(1,length(celdasZ));
+
+for indin=1:length(verticesX)
+    [encuminX,indiminX]=min(abs(celdasX-(verticesX(indin).*Xpatron)));
+    Xenceldas=[Xenceldas;indiminX];
+    [encuminY,indiminY]=min(abs(celdasY-(verticesY(indin).*Ypatron)));
+    Yenceldas=[Yenceldas;indiminY];
+    %     [encuminZ,indiminZ]=min(abs(celdasZ-(verticesZ(indin).*Zpatron)));
+    %     Zenceldas=[Zenceldas;indiminZ];
+    
+end
+
+
+
+% Se van distribuyendo los valores que se han calculado por las diferentes
+% matrices:
+% --> ImagenRango: almacena los valores Z para el vertice que corresponda
+% con cada celda de la matriz. En las celdas que no se introduce un
+% vertices, se almacena un NaN.
+% --> ImagenRangoSin: almacena lo mismo que Imagen Rango, pero en las
+% celdas sin vertice introduce un cero.
+% -->relleno_imagen: almacena el numero de vertices que "cae" sobre una
+% celda. Se utiliza como limitador para que solo entre un vertice en una
+% celda que este vacia. En el caso de que ya haya entrado otro vertice, no
+% se introduce.
+% --> ImagenX,ImagenY,ImagenZ: Almacena los valores X, Y y Z, de los
+% vertices que caen en cada celda
+
+ImagenRango=NaN*ones(length(celdasY),length(celdasX));
+ImagenRangoSin=zeros(length(celdasY),length(celdasX));
+ImagenRangoConta=zeros(length(celdasY),length(celdasX));
+% MatrizIndices=zeros(size(ImagenRango));
+% MatrizIndices_agu=cell(length(celdasY),length(celdasX));
+relleno_imagen=zeros(size(ImagenRangoSin));
+ImagenRangocell=cell(length(celdasY),length(celdasX));
+ImagenRangocelli=cell(length(celdasY),length(celdasX));
+
+
+%%%%% RASTERIZACION DE CADA TRIANGULO
+% ImagenRangoTri=zeros(length(celdasY),length(celdasX));
+
+
+%
+% for indiga=1:size(caras,1)
+%
+%     triangulo=caras(indiga,:);
+%     [ImagenRangoTri]=rellena_triangulo(celdasX,celdasY,verticesX,verticesY,verticesZ,triangulo);
+%
+%
+%
+% end
+%
+
+%%%%% RASTERIZACION DEL PARCHE
+% agujeros=Findholes(caras,vertices_seccion2,0);
+agujeros=EncuentraHuecos(caras,vertices_seccion2,0,0);
+[filin1,colin1]=max(cellfun('length',agujeros));
+[filan,colan]=find(cell2mat(agujeros)==punto_traducido);
+if(~isempty(colan))
+    colan=colan(1,1);
+    [filen,colen]=find((cumsum(cellfun('length',agujeros))-colan)>0);
+    colin2=min(colen);
+    
+    
+    for indon=1:length(Xenceldas)
+        
+        filaX=Xenceldas(indon);
+        filaY=Yenceldas(indon);
+        
+        ImagenRangoSin(filaY,filaX)=ImagenRangoSin(filaY,filaX)+verticesZ(indon);
+        ImagenRangoConta(filaY,filaX)=ImagenRangoConta(filaY,filaX)+1;
+        %     MatrizIndices(filaY,filaX)=indiceX(indon);
+        ImagenRangocell{filaY,filaX}=[ImagenRangocell{filaY,filaX};verticesZ(indon)];
+        ImagenRangocelli{filaY,filaX}=[ImagenRangocell{filaY,filaX};indiceX(indon)];
+        
+        % [filato,colato]=find(agujeros{colin2}==indiceX(indon));
+        % if(~isempty(filato))
+        %     MatrizIndices_agu{filaY,filaX}=[MatrizIndices_agu{filaY,filaX};indiceX(indon)];
+        % end
+        
+        
+        
+        %%%%% INICIO COMENTADO 18-11-09
+        %     if (relleno_imagen(filaY,filaX)==0)
+        %         ImagenRango(filaY,filaX)=verticesZ(indon);
+        %         ImagenRangoSin(filaY,filaX)=verticesZ(indon);
+        %         ImagenRangoConta(filaY,filaX)=1;
+        %         MatrizIndices(filaY,filaX)=indiceX(indon);
+        %         ImagenX(filaY,filaX)=verticesX(indon);
+        %         ImagenY(filaY,filaX)=verticesY(indon);
+        %         ImagenZ(filaY,filaX)=celdasZ(filaZ);
+        %
+        %         %%%%%%%%%%%%%% INICIO - NUEVO AÑADIDO ADAPTED PARA INSERTAR EL VALOR MEDIO
+        %         %%%%%%%%%%%%%% DE LOS VERTICES QUE CAEN SOBRE UNA MISMA CELDA
+        %     else
+        %
+        %         if (ImagenRango(filaY,filaX)>verticesZ(indon))
+        %
+        %             ImagenRango(filaY,filaX)=verticesZ(indon);
+        %             ImagenRangoSin(filaY,filaX)=verticesZ(indon);
+        %             ImagenRangoConta(filaY,filaX)=ImagenRangoConta(filaY,filaX)+1;
+        %             MatrizIndices(filaY,filaX)=indiceX(indon);
+        %             ImagenX(filaY,filaX)=verticesX(indon);
+        %             ImagenY(filaY,filaX)=verticesY(indon);
+        %             ImagenZ(filaY,filaX)=celdasZ(filaZ);
+        %
+        %         end
+        %
+        %
+        %
+        %         %%%%%%%%%%%%%% FIN - NUEVO AÑADIDO ADAPTED PARA INSERTAR EL VALOR MEDIO
+        %         %%%%%%%%%%%%%% DE LOS VERTICES QUE CAEN SOBRE UNA MISMA CELDA
+        %
+        %
+        %     end
+        %%%%% FIN COMENTADO 18-11-09
+        
+        
+        
+        relleno_imagen(filaY,filaX)=relleno_imagen(filaY,filaX)+1;
+        
+        
+    end
+    
+    
+    ImagenRangoSin=ImagenRangoSin./(ImagenRangoConta+(ImagenRangoConta==0));
+    
+    %%%%%%%%%%%%%% INICIO2 - NUEVO AÑADIDO ADAPTED PARA INSERTAR EL VALOR MEDIO
+    %%%%%%%%%%%%%% DE LOS VERTICES QUE CAEN SOBRE UNA MISMA CELDA
+    % ImagenRango=ImagenRango./ImagenRangoConta;
+    % ImagenRangoSin=ImagenRangoSin./ImagenRangoConta;
+    % ImagenX=ImagenX./ImagenRangoConta;
+    % ImagenY=ImagenY./ImagenRangoConta;
+    % ImagenZ=ImagenZ./ImagenRangoConta;
+    
+    
+    %%%%%%%%%%%%%% FIN2 - NUEVO AÑADIDO ADAPTED PARA INSERTAR EL VALOR MEDIO
+    %%%%%%%%%%%%%% DE LOS VERTICES QUE CAEN SOBRE UNA MISMA CELDA
+    
+    
+    %% Parte 4
+    %%Busqueda de los vértices pertenecientes a los bordes de hueco
+    % v_borde=[];
+    % v_int=[];
+    %
+    %
+    % for indibus=1:length(vertices)
+    %     if (length(find(caras==indibus))<=5)
+    %         v_borde=[v_borde;indibus];
+    %     else
+    %         v_int=[v_int;indibus];
+    %     end
+    % end
+    %
+    %
+    
+    %%%%%%%% NO MULTIPLES AGUJEROS EN LA MISMA IMAGEN DE RANGO
+    % [filin2,colin2]=min(cellfun('length',agujeros));
+    %%%%%%%% FIN NO MULTIPLES AGUJEROS EN LA MISMA IMAGEN DE RANGO
+    ImaRanInterp=ImagenRangoSin;
+    
+    if (image_interp==1)
+        datosx=Xenceldas(convinv(agujeros{1,colin1}'),1);
+        datosy=Yenceldas(convinv(agujeros{1,colin1}'),1);
+        mascarapol=poly2mask(datosx,datosy,length(Ypatron),length(Xpatron));
+        datosx2=Xenceldas(convinv(agujeros{1,colin2}'),1);
+        datosy2=Yenceldas(convinv(agujeros{1,colin2}'),1);
+        mascarapol2=poly2mask(datosx2,datosy2,length(Ypatron),length(Xpatron));
+        
+        mascarapoligon=~(mascarapol2)-~mascarapol;
+        
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%% INTERPOLACION DE LA IMAGEN DE RANGO
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        datos_interp=mascarapoligon&~ImagenRangoSin;
+        
+        
+        if(regenimran==1)
+            regenera_imagen_rango;
+            ImaRanInterp=reimagenrango;
+        end
+        
+        verticestri=[];
+        indicestri=[];
+        
+        
+        % ImaRanInterp=mascarapoligon&~ImagenRangoSin;
+        % ImaRanInterpC=mascarapoligon&~ImagenRango;
+        
+        minimanew=min(min(ImagenRango));
+        
+        ImaRanVecin=zeros(size(ImagenRangoSin));
+        % MatrizIndices_added=MatrizIndices;
+        [fili,coli]=find(datos_interp==1);
+        
+        if (~isempty(fili))
+            datos_a_rellenar=[];
+            datosmedia=[];
+            listavecinos=cell(length(fili),1);
+            vert_dimen=length(vertices_seccion2);
+            vertices_added=vertices_seccion2;
+            caras_added=caras;
+            anterior=0;
+            
+            
+            for induji=1:length(fili)
+                ImaRanDil=zeros(size(ImagenRangoSin));
+                ImaRanDil(fili(induji),coli(induji))=1;
+                imagenvecin=imdilate(ImaRanDil,strel('square',3));
+                imagenvecin(fili(induji),coli(induji))=0;
+                [filu,colu]=find((imagenvecin&(ImagenRangoSin>0))==1);
+                ImaRanVecin(fili(induji),coli(induji))=length(filu);
+                
+                datos_a_rellenar=[datos_a_rellenar;fili(induji) coli(induji) length(filu)];
+                listavecinos{induji,1}=[filu colu];
+                
+            end
+            
+            [ordenados,indorden]=sort(datos_a_rellenar(:,3),'ascend');
+            datos_a_rellenar(:,1)=datos_a_rellenar(indorden,1);
+            datos_a_rellenar(:,2)=datos_a_rellenar(indorden,2);
+            datos_a_rellenar(:,3)=datos_a_rellenar(indorden,3);
+            
+            for indexo=1:size(datos_a_rellenar,1)
+                
+                for indui=1:size(listavecinos{indorden(indexo),1},1)
+                    
+                    datosmedia=[datosmedia;ImaRanInterp(listavecinos{indorden(indexo),1}(indui,1),listavecinos{indorden(indexo),1}(indui,2))];
+                    
+                    
+                    
+                    
+                end
+                
+                %% Añadido el 23-02-2011
+                if(~isempty(datosmedia))
+                    ImaRanInterp(datos_a_rellenar(indexo,1),datos_a_rellenar(indexo,2))=mean(datosmedia);
+                else
+                    ImaRanInterp(datos_a_rellenar(indexo,1),datos_a_rellenar(indexo,2))=0;
+                    
+                end
+                vertices_added(vert_dimen+indexo,:)=[celdasX(datos_a_rellenar(indexo,2)) celdasY(datos_a_rellenar(indexo,1)) mean(datosmedia)];
+                %         MatrizIndices_added(datos_a_rellenar(indexo,1),datos_a_rellenar(indexo,2))=vert_dimen+indexo;
+                
+                datosmedia=[];
+                
+            end
+        end
+    elseif (image_interp==2)
+        datosx=Xenceldas(convinv(agujeros{1,colin1}'),1);
+        datosy=Yenceldas(convinv(agujeros{1,colin1}'),1);
+        mascarapol=poly2mask(datosx,datosy,length(Ypatron),length(Xpatron));
+        datosx2=Xenceldas(convinv(agujeros{1,colin2}'),1);
+        datosy2=Yenceldas(convinv(agujeros{1,colin2}'),1);
+        mascarapol2=poly2mask(datosx2,datosy2,length(Ypatron),length(Xpatron));
+        minimanew=min(min(ImagenRango));
+        
+        
+         if(regenimran==1)
+            regenera_imagen_rango;
+             ImaRanInterp=reimagenrango;
+        end
+        
+        
+        SE = strel('square', 3);
+        size_ima=size(ImagenRangoSin);
+        ImaRanBase=zeros(size(ImagenRangoSin));
+        zonas_vacias = bwconncomp(ImagenRangoSin==0);
+        zonas_vacias=zonas_vacias.PixelIdxList;
+        size_zonas=cellfun('length',zonas_vacias);
+        [filel,colel]=find(size_zonas<=40);
+        for indel=1:length(colel)
+            zona=zonas_vacias{colel(indel)};
+            for indicol=1:size_zonas(colel(indel))
+                [I,J] = ind2sub(size_ima,zona(indicol));
+                lista_vecinos=[];
+                
+                ImaRanBase=zeros(size(ImagenRangoSin));
+                ImaRanBase(I,J)=1;
+                ImaRanBase = imdilate(ImaRanBase, SE);
+                ImaRanBase(I,J)=0;
+                [filol,colol]=find((ImaRanBase.*ImagenRangoSin)>0);
+                for indelu=1:length(colol)
+                    lista_vecinos=[lista_vecinos;ImagenRangoSin(filol(indelu),colol(indelu))];
+                end
+                ImaRanInterp(I,J)=mean(lista_vecinos);
+            end
+            
+        end
+        
+    end
+    agujero_actual=colin2;
+else
+    agujero_actual=0;
+    ImaRanInterp=0;
+    mascarapol2=0;
+    minimanew=0;
+end

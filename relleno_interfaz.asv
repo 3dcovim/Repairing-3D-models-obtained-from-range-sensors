@@ -1,0 +1,923 @@
+function varargout = relleno_interfaz(varargin)
+% RELLENO_INTERFAZ M-file for relleno_interfaz.fig
+%      RELLENO_INTERFAZ, by itself, creates a new RELLENO_INTERFAZ or raises the existing
+%      singleton*.
+%
+%      H = RELLENO_INTERFAZ returns the handle to a new RELLENO_INTERFAZ or the handle to
+%      the existing singleton*.
+%
+%      RELLENO_INTERFAZ('CALLBACK',hObject,eventData,handles,...) calls the local
+%      function named CALLBACK in RELLENO_INTERFAZ.M with the given input arguments.
+%
+%      RELLENO_INTERFAZ('Property','Value',...) creates a new RELLENO_INTERFAZ or raises the
+%      existing singleton*.  Starting from the left, property value pairs are
+%      applied to the GUI before relleno_interfaz_OpeningFcn gets called.  An
+%      unrecognized property name or invalid value makes property application
+%      stop.  All inputs are passed to relleno_interfaz_OpeningFcn via varargin.
+%
+%      *See GUI Options on GUIDE's Tools menu.  Choose "GUI allows only one
+%      instance to run (singleton)".
+%
+% See also: GUIDE, GUIDATA, GUIHANDLES
+
+% Edit the above text to modify the response to help relleno_interfaz
+
+% Last Modified by GUIDE v2.5 21-Nov-2010 18:04:27
+
+% Begin initialization code - DO NOT EDIT
+gui_Singleton = 1;
+gui_State = struct('gui_Name',       mfilename, ...
+    'gui_Singleton',  gui_Singleton, ...
+    'gui_OpeningFcn', @relleno_interfaz_OpeningFcn, ...
+    'gui_OutputFcn',  @relleno_interfaz_OutputFcn, ...
+    'gui_LayoutFcn',  [] , ...
+    'gui_Callback',   []);
+if nargin && ischar(varargin{1})
+    gui_State.gui_Callback = str2func(varargin{1});
+end
+
+if nargout
+    [varargout{1:nargout}] = gui_mainfcn(gui_State, varargin{:});
+else
+    gui_mainfcn(gui_State, varargin{:});
+end
+% End initialization code - DO NOT EDIT
+
+
+% --- Executes just before relleno_interfaz is made visible.
+function relleno_interfaz_OpeningFcn(hObject, eventdata, handles, varargin)
+% This function has no output args, see OutputFcn.
+% hObject    handle to figure
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+% varargin   command line arguments to relleno_interfaz (see VARARGIN)
+
+% Choose default command line output for relleno_interfaz
+handles.output = hObject;
+handles.caras= varargin{1};
+handles.vertices= varargin{2};
+handles.normales= varargin{3};
+handles.h_modify= varargin{4};
+handles.camara= varargin{5};
+handles.visualizacion= varargin{6};
+handles.selec_automatic_parche= varargin{7};
+handles.extension_parche= varargin{8};
+
+handles.huecos_selec=[];
+
+
+handles.terminar2=0;
+handles.output=0;
+handles.maximov=max(handles.vertices);
+
+set(handles.checkbox1,'Value',handles.visualizacion.aristas);
+set(handles.edit1,'String',num2str(handles.extension_parche));
+set(handles.edit1,'Enable','off');
+set(handles.checkbox3,'Value',~handles.selec_automatic_parche);
+set(handles.pushbutton5,'Enable','off');
+
+% scrsz = get(0,'ScreenSize'); %Vemos cuál es el tamaño de la pantalla
+
+set(handles.figure1,'Position',[25 25 205 46]);
+cameratoolbar('Show');
+handles.modo_sh='Flat';
+handles.modo_li='None';
+
+set(handles.figure1,'WindowScrollWheelFcn' , @scroll_zoom);
+set(handles.figure1,'WindowButtonDownFcn'  , @pan_click);
+set(handles.figure1, 'WindowButtonUpFcn'  ,@pan_release);
+set(handles.figure1, 'WindowButtonMotionFcn' , @pan_motion);
+
+ 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% PRIMERA REPRESENTACION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+handles=representacion(hObject,handles);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% FIN PRIMERA REPRESENTACION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+handles.agujeros=[];
+hold on;
+% figure(f2),hold on
+for k=1:length(handles.h_modify)
+    handles.dibu=plot3(handles.vertices(handles.h_modify{k},1),handles.vertices(handles.h_modify{k},2),handles.vertices(handles.h_modify{k},3),'b','LineWidth',2);
+    handles.agujeros=[handles.agujeros;handles.dibu];
+end
+
+handles.filu_anterior=0;
+
+handles.ptos2=[];
+handles.puntos_bordes=cell2mat(handles.h_modify);
+
+% set(handles.figure1,'KeyPressFcn',@printfig);
+
+
+% Update handles structure
+guidata(hObject, handles);
+
+% UIWAIT makes relleno_interfaz wait for user response (see UIRESUME)
+% uiwait(handles.figure1);
+
+
+% --- Outputs from this function are returned to the command line.
+function varargout = relleno_interfaz_OutputFcn(hObject, eventdata, handles)
+% varargout  cell array for returning output args (see VARARGOUT);
+% hObject    handle to figure
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Get default command line output from handles structure
+varargout{1} = handles.output;
+
+
+% --- Executes on button press in pushbutton5.
+function pushbutton5_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton5 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+info2=getCursorInfo(handles.c2);
+if  ~isempty(info2)
+    
+    %             ptos2=[ptos2;info2.Position];
+    %             color_pto=rand(1,3);
+    
+    %             figure(f2),hold on
+    %             plot3(ptos2(end,1),ptos2(end,2),ptos2(end,3),'o','MarkerEdgeColor','k',...
+    %                 'MarkerFaceColor',color_pto,...
+    %                 'MarkerSize',10)
+    
+    punto_select=info2.Position;
+    
+    distancias_bor=sqrt(sum((handles.vertices(handles.puntos_bordes',:)-punto_select(ones(length(handles.puntos_bordes),1),:)).^2,2));
+    [filob,colob]=min(distancias_bor);
+    [filw,colw]=find(colob-cumsum(cellfun('length',handles.h_modify))>0);
+    
+    if(~isempty(colw))
+        [filu,colu]=max(colw);
+        filu=filu+1;
+    else
+        filu=1;
+    end
+    if(distancias_bor(colob)<20)
+        %                 set(agujeros(filu),'Visible','off');
+        
+        if(filu~=handles.filu_anterior)
+            delete(handles.agujeros(filu));
+            
+            if(isfield(handles,'ultimo_punto'))
+                delete(handles.ultimo_punto);
+                handles=rmfield(handles, 'ultimo_punto');
+            end
+            if(isfield(handles,'ultimo_borde'))
+                delete(handles.ultimo_borde);
+                handles=rmfield(handles, 'ultimo_borde');
+            end
+            if(handles.filu_anterior~=0)
+                handles.agujeros(handles.filu_anterior)=plot3(handles.vertices(handles.h_modify{handles.filu_anterior},1),handles.vertices(handles.h_modify{handles.filu_anterior},2),handles.vertices(handles.h_modify{handles.filu_anterior},3),'b','LineWidth',2);
+            end
+            
+            handles.ultimo_borde=plot3(handles.vertices(handles.h_modify{filu},1),handles.vertices(handles.h_modify{filu},2),handles.vertices(handles.h_modify{filu},3),'r','LineWidth',5);
+        end
+        handles.filu_anterior=filu;
+        
+        
+        
+    else
+        handles.ptos2=[handles.ptos2;info2.Position];
+        color_pto='y';
+        if(isfield(handles,'ultimo_punto'))
+            delete(handles.ultimo_punto);
+            handles=rmfield(handles, 'ultimo_punto');
+        end
+        if(isfield(handles,'ultimo_borde'))
+            delete(handles.ultimo_borde);
+            handles=rmfield(handles, 'ultimo_borde');
+        end
+        %                 figure(f2),hold on
+        handles.ultimo_punto=plot3(handles.ptos2(end,1),handles.ptos2(end,2),handles.ptos2(end,3),'o','MarkerEdgeColor','k',...
+            'MarkerFaceColor',color_pto,...
+            'MarkerSize',10);
+        if(handles.filu_anterior~=0)
+            handles.agujeros(handles.filu_anterior)=plot3(handles.vertices(handles.h_modify{handles.filu_anterior},1),handles.vertices(handles.h_modify{handles.filu_anterior},2),handles.vertices(handles.h_modify{handles.filu_anterior},3),'b','LineWidth',2);
+        end
+        
+        
+    end
+end
+
+guidata(hObject, handles);
+
+
+
+
+
+% --- Executes on button press in pushbutton6.
+function pushbutton6_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton6 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+handles.aguje=handles.filu_anterior;
+if(~(handles.aguje>0))
+    disp('No se seleccionó ningún borde');
+end
+handles.output=1;
+handles.camara.posicion = get(gca,'CameraPosition');
+handles.camara.angulo = get(gca,'CameraViewAngle');
+handles.camara.objetivo = get(gca,'CameraTarget');
+handles.extension_parche= str2num(get(handles.edit1,'String'));
+guidata(hObject, handles);
+
+
+% --- Executes on button press in pushbutton7.
+function pushbutton7_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton7 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+handles.aguje=handles.filu_anterior;
+if(~(handles.aguje>0))
+    disp('No se seleccionó ningún borde');
+end
+handles.terminar2=1;
+handles.output=1;
+guidata(hObject, handles);
+
+
+% --- Executes on button press in pushbutton1.
+function pushbutton1_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+[handles.vertices,handles.caras]=meshcheckrepair(handles.vertices,handles.caras,'duplicated');
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%% REPRESENTACION NUEVA
+%%%%%%%%%%%%%%%%%%%%%%%%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+delete(handles.ppp);
+if(~isempty(handles.h_modify))
+    delete(handles.agujeros);
+end
+handles.h_modify=EncuentraHuecos(handles.caras,handles.vertices,0,0);
+
+
+if(length(handles.normales)~=length(handles.vertices))
+    [handles.normales,normalesf] = compute_normal(handles.vertices,handles.caras);
+    handles.normales=handles.normales';
+end
+
+handles.camara.posicion = get(gca,'CameraPosition');
+handles.camara.angulo = get(gca,'CameraViewAngle');
+handles.camara.objetivo = get(gca,'CameraTarget');
+handles=representacion(hObject, handles);
+handles.agujeros=[];
+for k=1:length(handles.h_modify)
+    handles.dibu=plot3(handles.vertices(handles.h_modify{k},1),handles.vertices(handles.h_modify{k},2),handles.vertices(handles.h_modify{k},3),'b','LineWidth',2);
+    handles.agujeros=[handles.agujeros;handles.dibu];
+end
+handles.filu_anterior=0;
+
+
+
+handles.ptos2=[];
+handles.puntos_bordes=cell2mat(handles.h_modify);
+guidata(hObject, handles);
+
+
+
+
+
+% --- Executes on button press in pushbutton2.
+function pushbutton2_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+[handles.vertices,handles.caras]=meshcheckrepair(handles.vertices,handles.caras,'isolated');
+delete(handles.ppp);
+if(~isempty(handles.h_modify))
+    delete(handles.agujeros);
+end
+handles.h_modify=EncuentraHuecos(handles.caras,handles.vertices,0,0);
+if(length(handles.normales)~=length(handles.vertices))
+    [handles.normales,normalesf] = compute_normal(handles.vertices,handles.caras);
+    handles.normales=handles.normales';
+end
+
+handles.camara.posicion = get(gca,'CameraPosition');
+handles.camara.angulo = get(gca,'CameraViewAngle');
+handles.camara.objetivo = get(gca,'CameraTarget');
+handles=representacion(hObject, handles);
+handles.agujeros=[];
+for k=1:length(handles.h_modify)
+    handles.dibu=plot3(handles.vertices(handles.h_modify{k},1),handles.vertices(handles.h_modify{k},2),handles.vertices(handles.h_modify{k},3),'b','LineWidth',2);
+    handles.agujeros=[handles.agujeros;handles.dibu];
+end
+handles.filu_anterior=0;
+handles.ptos2=[];
+handles.puntos_bordes=cell2mat(handles.h_modify);
+guidata(hObject, handles);
+
+
+% --- Executes on button press in pushbutton3.
+function pushbutton3_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+[handles.vertices,handles.caras]=meshcheckrepair(handles.vertices,handles.caras,'deep');
+delete(handles.ppp);
+if(~isempty(handles.h_modify))
+    delete(handles.agujeros);
+end
+handles.h_modify=EncuentraHuecos(handles.caras,handles.vertices,0,0);
+if(length(handles.normales)~=length(handles.vertices))
+    [handles.normales,normalesf] = compute_normal(handles.vertices,handles.caras);
+    handles.normales=handles.normales';
+end
+
+handles.camara.posicion = get(gca,'CameraPosition');
+handles.camara.angulo = get(gca,'CameraViewAngle');
+handles.camara.objetivo = get(gca,'CameraTarget');
+handles=representacion(hObject, handles);
+handles.agujeros=[];
+for k=1:length(handles.h_modify)
+    handles.dibu=plot3(handles.vertices(handles.h_modify{k},1),handles.vertices(handles.h_modify{k},2),handles.vertices(handles.h_modify{k},3),'b','LineWidth',2);
+    handles.agujeros=[handles.agujeros;handles.dibu];
+end
+handles.filu_anterior=0;
+
+
+handles.ptos2=[];
+handles.puntos_bordes=cell2mat(handles.h_modify);
+guidata(hObject, handles);
+
+
+
+% --- Executes on button press in pushbutton4.
+function pushbutton4_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton4 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+gruposcaras=finddisconnsurf(handles.caras);
+if (size(gruposcaras,2)>1)
+    islotes=cellfun('length',gruposcaras);
+    [islamax,indisla]=max(islotes);
+    [filmax,colmax]=find(islotes<islamax*0.10);
+    islasvalidas=setdiff(1:length(islotes),colmax);
+    handles.caras=[];
+    for indimax=1:(length(islasvalidas))
+        handles.caras=[handles.caras;gruposcaras{1,islasvalidas(indimax)}];
+    end
+    
+    disp(['Se han eliminado ' num2str((size(gruposcaras,2)-1)) ' grupos']);
+end
+
+
+delete(handles.ppp);
+if(~isempty(handles.h_modify))
+    delete(handles.agujeros);
+end
+handles.h_modify=EncuentraHuecos(handles.caras,handles.vertices,0,0);
+if(length(handles.normales)~=length(handles.vertices))
+    [handles.normales,normalesf] = compute_normal(handles.vertices,handles.caras);
+    handles.normales=handles.normales';
+end
+
+
+handles.camara.posicion = get(gca,'CameraPosition');
+handles.camara.angulo = get(gca,'CameraViewAngle');
+handles.camara.objetivo = get(gca,'CameraTarget');
+handles=representacion(hObject, handles);
+handles.agujeros=[];
+for k=1:length(handles.h_modify)
+    handles.dibu=plot3(handles.vertices(handles.h_modify{k},1),handles.vertices(handles.h_modify{k},2),handles.vertices(handles.h_modify{k},3),'b','LineWidth',2);
+    handles.agujeros=[handles.agujeros;handles.dibu];
+end
+handles.filu_anterior=0;
+
+
+handles.ptos2=[];
+handles.puntos_bordes=cell2mat(handles.h_modify);
+guidata(hObject, handles);
+
+
+
+function handles=representacion(hObject, handles)
+
+opengl hardware;
+set(handles.figure1,'Renderer','OpenGL');
+hold on;
+% cla;
+if(isfield(handles,'luz1'))
+    delete(handles.luz1);
+    delete(handles.luz2);
+    delete(handles.luz3);
+    %      handles=rmfield(handles, 'luz1');
+    %       handles=rmfield(handles, 'luz2');
+    %                     handles=rmfield(handles, 'ultimo_punto');
+end
+
+
+% set(handles.axes1,'Color',[1 1 1]);%,'Position',[10 258   560   420]);
+set(handles.axes1,'Visible','off');%,'CameraPosition',camara);
+axes(handles.axes1);
+
+
+
+handles.luz1=light('Position',[handles.maximov(1,1) 0 handles.maximov(1,3)/2],'Style','infinite');     % add a default light
+handles.luz2=light('Position',[-handles.maximov(1,1) 0 handles.maximov(1,3)/2],'Style','infinite');
+daspect([1 1 1]);                                                        % Setting the aspect ratio
+
+
+
+handles.ppp = patch('faces', handles.caras, 'vertices' ,handles.vertices, 'FaceAlpha', 1, 'VertexNormals', handles.normales);
+% set(handles.ppp, 'facec', 'interp');                                                % Set the face color interp
+set(handles.ppp, 'FaceVertexCData', 0.5*ones(length(handles.vertices),1));                                           % Set the color (from file)
+
+
+
+% handles.c2 = datacursormode(handles.figure1);
+% set(handles.c2,'DisplayStyle','window','SnapToDataVertex','on');
+%
+% datacursormode on;
+% rotate3d on;
+cameratoolbar('SetMode','orbit');
+handles.luz3=camlight;
+lighting(handles.axes1,handles.modo_li);
+shading(handles.axes1,handles.modo_sh);
+if(handles.visualizacion.aristas)
+    set(handles.ppp, 'EdgeColor','k');
+else
+    set(handles.ppp, 'EdgeColor','none');
+end
+
+if(handles.camara.objetivo==0)
+    set(handles.axes1,'CameraTargetMode','auto');
+    set(handles.axes1,'CameraPositionMode','auto');
+    set(handles.axes1,'CameraViewAngleMode','auto');
+else
+    
+    set(handles.axes1,'CameraTarget',handles.camara.objetivo);
+    set(handles.axes1,'CameraPosition',handles.camara.posicion);
+    set(handles.axes1,'CameraViewAngle',handles.camara.angulo);
+end
+
+
+
+drawnow;
+guidata(hObject, handles);
+
+
+% --- Executes on button press in checkbox1.
+function checkbox1_Callback(hObject, eventdata, handles)
+% hObject    handle to checkbox1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of checkbox1
+handles.visualizacion.aristas=get(handles.checkbox1,'Value');
+handles=representacion(hObject, handles);
+guidata(hObject, handles);
+
+
+% --- Executes on button press in pushbutton9.
+function pushbutton9_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton9 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+[handles.vertices,handles.caras]=Repara_malla(handles.vertices,handles.caras);
+delete(handles.ppp);
+if(~isempty(handles.h_modify))
+    delete(handles.agujeros);
+end
+handles.h_modify=EncuentraHuecos(handles.caras,handles.vertices,0,0);
+if(length(handles.normales)~=length(handles.vertices))
+    [handles.normales,normalesf] = compute_normal(handles.vertices,handles.caras);
+    handles.normales=handles.normales';
+end
+
+handles.camara.posicion = get(gca,'CameraPosition');
+handles.camara.angulo = get(gca,'CameraViewAngle');
+handles.camara.objetivo = get(gca,'CameraTarget');
+handles=representacion(hObject, handles);
+handles.agujeros=[];
+for k=1:length(handles.h_modify)
+    handles.dibu=plot3(handles.vertices(handles.h_modify{k},1),handles.vertices(handles.h_modify{k},2),handles.vertices(handles.h_modify{k},3),'b','LineWidth',2);
+    handles.agujeros=[handles.agujeros;handles.dibu];
+end
+handles.filu_anterior=0;
+
+
+handles.ptos2=[];
+handles.puntos_bordes=cell2mat(handles.h_modify);
+guidata(hObject, handles);
+
+
+% --- Executes on selection change in popupmenu1.
+function popupmenu1_Callback(hObject, eventdata, handles)
+% hObject    handle to popupmenu1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns popupmenu1 contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from popupmenu1
+modos={['Flat'];['Faceted'];['Interp']};
+handles.modo_sh=modos{get(gcbo,'Value')};
+shading(handles.axes1,handles.modo_sh);
+if(handles.visualizacion.aristas)
+    set(handles.ppp, 'EdgeColor','k');
+else
+    set(handles.ppp, 'EdgeColor','none');
+end
+guidata(hObject, handles);
+
+% --- Executes during object creation, after setting all properties.
+function popupmenu1_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to popupmenu1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on selection change in popupmenu2.
+function popupmenu2_Callback(hObject, eventdata, handles)
+% hObject    handle to popupmenu2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns popupmenu2 contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from popupmenu2
+modos={['None'];['Flat'];['Gouraud']};
+handles.modo_li=modos{get(gcbo,'Value')};
+lighting(handles.axes1,handles.modo_li);
+if(handles.visualizacion.aristas)
+    set(handles.ppp, 'EdgeColor','k');
+else
+    set(handles.ppp, 'EdgeColor','none');
+end
+guidata(hObject, handles);
+
+
+
+% --- Executes during object creation, after setting all properties.
+function popupmenu2_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to popupmenu2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in checkbox2.
+function checkbox2_Callback(hObject, eventdata, handles)
+% hObject    handle to checkbox2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of checkbox2
+
+
+% --- Executes on mouse press over axes background.
+function axes1_ButtonDownFcn(hObject, eventdata, handles)
+% hObject    handle to axes1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+AAA=get(gcbo,'CurrentPoint')
+
+function printfig(src,evnt)
+if evnt.Character == 'e'
+    print ('-deps',['-f' num2str(src)])
+elseif length(evnt.Modifier) == 1 & strcmp(evnt.Modifier{:},'control') & ...
+        evnt.Key == 't'
+    print ('-dtiff','-r200',['-f' num2str(src)])
+end
+
+
+
+function edit1_Callback(hObject, eventdata, handles)
+% hObject    handle to edit1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit1 as text
+%        str2double(get(hObject,'String')) returns contents of edit1 as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function edit1_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in checkbox3.
+function checkbox3_Callback(hObject, eventdata, handles)
+% hObject    handle to checkbox3 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of checkbox3
+handles.selec_automatic_parche= ~handles.selec_automatic_parche;
+if(handles.selec_automatic_parche==1)
+    set(handles.edit1,'Enable','on');
+else
+    set(handles.edit1,'Enable','off');
+    
+end
+
+guidata(hObject, handles);
+
+
+% --- Executes on button press in pushbutton10.
+function pushbutton10_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton10 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+axes(handles.axes1);
+% k=[1,1:3);
+
+for indul=1:length(handles.huecos_selec)
+    delete(handles.agujeros(handles.huecos_selec(indul)));
+    handles.agujeros(handles.huecos_selec(indul))=plot3(handles.vertices(handles.h_modify{handles.huecos_selec(indul)},1),handles.vertices(handles.h_modify{handles.huecos_selec(indul)},2),handles.vertices(handles.h_modify{handles.huecos_selec(indul)},3),'b','LineWidth',2);
+    
+end
+
+
+
+
+% for k=1:length(handles.h_modify)
+X=handles.vertices(cell2mat(handles.h_modify),1);
+Y=handles.vertices(cell2mat(handles.h_modify),2);
+Z=handles.vertices(cell2mat(handles.h_modify),3);
+
+longitudes=cellfun('prodofsize',handles.h_modify);
+
+separacion_huecos=[];
+for indal=1:length(longitudes)
+    separacion_huecos=[separacion_huecos indal*ones(1,longitudes(1,indal))];
+end
+
+
+%     handles.dibu=plot3(handles.vertices(handles.h_modify{k},1),handles.vertices(handles.h_modify{k},2),handles.vertices(handles.h_modify{k},3),'b','LineWidth',2);
+%     handles.agujeros=[handles.agujeros;handles.dibu];
+% end
+
+% S = repmat([1 .75 .5]*10,prod(size(X)),1);
+% C = repmat([1 2 3],prod(size(X)),1);
+
+
+
+puntos_scater=scatter3(X(:),Y(:),Z(:),'filled');
+
+% Draw red circles around selected points
+SS=rbb3select(X,Y,Z);
+
+
+
+% hold on
+% scatter3(X(find(SS)),Y(find(SS)),Z(find(SS)),'o','r');
+handles.huecos_selec=setdiff(SS.*separacion_huecos',0);
+delete(handles.agujeros(handles.huecos_selec));
+delete(puntos_scater);
+
+for indul=1:length(handles.huecos_selec)
+    handles.agujeros(handles.huecos_selec(indul))=plot3(handles.vertices(handles.h_modify{handles.huecos_selec(indul)},1),handles.vertices(handles.h_modify{handles.huecos_selec(indul)},2),handles.vertices(handles.h_modify{handles.huecos_selec(indul)},3),'r','LineWidth',5);
+    
+end
+
+
+% hold off
+guidata(hObject, handles);
+
+
+% --- Executes on button press in pushbutton11.
+function pushbutton11_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton11 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+axes(handles.axes1);
+% k=[1,1:3);
+
+% for k=1:length(handles.h_modify)
+X=handles.vertices(cell2mat(handles.h_modify(setdiff(1:length(handles.h_modify),handles.huecos_selec))),1);
+Y=handles.vertices(cell2mat(handles.h_modify(setdiff(1:length(handles.h_modify),handles.huecos_selec))),2);
+Z=handles.vertices(cell2mat(handles.h_modify(setdiff(1:length(handles.h_modify),handles.huecos_selec))),3);
+
+longitudes=cellfun('prodofsize',handles.h_modify);
+lista_huecos=1:length(handles.h_modify);
+
+longitudes(handles.huecos_selec)=[];
+lista_huecos(handles.huecos_selec)=[];
+separacion_huecos=[];
+
+for indal=1:length(longitudes)
+    separacion_huecos=[separacion_huecos lista_huecos(indal)*ones(1,longitudes(1,indal))];
+end
+
+
+puntos_scater=scatter3(X(:),Y(:),Z(:),'filled');
+
+% Draw red circles around selected points
+SS=rbb3select(X,Y,Z);
+
+
+
+% hold on
+% scatter3(X(find(SS)),Y(find(SS)),Z(find(SS)),'o','r');
+handles.huecos_selec=sort(unique([handles.huecos_selec;  setdiff(SS.*separacion_huecos',0)]));
+delete(handles.agujeros(handles.huecos_selec));
+delete(puntos_scater);
+
+for indul=1:length(handles.huecos_selec)
+    handles.agujeros(handles.huecos_selec(indul))=plot3(handles.vertices(handles.h_modify{handles.huecos_selec(indul)},1),handles.vertices(handles.h_modify{handles.huecos_selec(indul)},2),handles.vertices(handles.h_modify{handles.huecos_selec(indul)},3),'r','LineWidth',5);
+    
+end
+
+guidata(hObject, handles);
+
+% --- Executes on button press in pushbutton12.
+function pushbutton12_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton12 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+axes(handles.axes1);
+% k=[1,1:3);
+
+% for k=1:length(handles.h_modify)
+X=handles.vertices(cell2mat(handles.h_modify(handles.huecos_selec)),1);
+Y=handles.vertices(cell2mat(handles.h_modify(handles.huecos_selec)),2);
+Z=handles.vertices(cell2mat(handles.h_modify(handles.huecos_selec)),3);
+
+longitudes=cellfun('prodofsize',handles.h_modify);
+lista_huecos=1:length(handles.h_modify);
+
+longitudes(setdiff(1:length(handles.h_modify),handles.huecos_selec))=[];
+lista_huecos(setdiff(1:length(handles.h_modify),handles.huecos_selec))=[];
+separacion_huecos=[];
+
+for indal=1:length(longitudes)
+    separacion_huecos=[separacion_huecos lista_huecos(indal)*ones(1,longitudes(1,indal))];
+end
+
+
+puntos_scater=scatter3(X(:),Y(:),Z(:),'filled','r');
+
+% Draw red circles around selected points
+SS=rbb3select(X,Y,Z);
+
+
+
+% hold on
+% scatter3(X(find(SS)),Y(find(SS)),Z(find(SS)),'o','r');
+eliminados=setdiff(SS.*separacion_huecos',0);
+handles.huecos_selec=setdiff(handles.huecos_selec,eliminados);
+delete(handles.agujeros(handles.huecos_selec));
+delete(handles.agujeros(eliminados));
+delete(puntos_scater);
+
+for indul=1:length(handles.huecos_selec)
+    handles.agujeros(handles.huecos_selec(indul))=plot3(handles.vertices(handles.h_modify{handles.huecos_selec(indul)},1),handles.vertices(handles.h_modify{handles.huecos_selec(indul)},2),handles.vertices(handles.h_modify{handles.huecos_selec(indul)},3),'r','LineWidth',5);
+    
+end
+for indul=1:length(eliminados)
+    handles.agujeros(eliminados(indul))=plot3(handles.vertices(handles.h_modify{eliminados(indul)},1),handles.vertices(handles.h_modify{eliminados(indul)},2),handles.vertices(handles.h_modify{eliminados(indul)},3),'b','LineWidth',2);
+    
+end
+
+guidata(hObject, handles);
+
+
+
+
+
+function scroll_zoom(varargin)
+MainFig=varargin{1};
+% (varargin,handles)
+        % double check if these axes are indeed the current axes
+%         axs=handles.axes1;
+%         if get(MainFig, 'currentaxes') ~= axs, return, end
+axs=get(MainFig,'CurrentAxes');
+        % get the amount of scolls
+        scrolls = varargin{2}.VerticalScrollCount;
+        % get the axes' x- and y-limits
+        xlim = get(axs, 'xlim');  ylim = get(axs, 'ylim');
+        % get the current camera position, and save the [z]-value
+        cam_pos_Z = get(axs, 'cameraposition');  cam_pos_Z = cam_pos_Z(3);
+        % get the current point
+        old_position = get(axs, 'CurrentPoint'); old_position(1,3) = cam_pos_Z;
+        % calculate zoom factor
+        zoomfactor = 1 - scrolls/50;
+        % adjust camera position
+        set(axs, 'cameratarget', [old_position(1, 1:2), 0],...
+            'cameraposition', old_position(1, 1:3));
+        % adjust the camera view angle (equal to zooming in)
+        camzoom(zoomfactor);
+        % zooming with the camera has the side-effect of
+        % NOT adjusting the axes limits. We have to correct for this:
+        x_lim1 = (old_position(1,1) - min(xlim))/zoomfactor;
+        x_lim2 = (max(xlim) - old_position(1,1))/zoomfactor;
+        xlim   = [old_position(1,1) - x_lim1, old_position(1,1) + x_lim2];
+        y_lim1 = (old_position(1,2) - min(ylim))/zoomfactor;
+        y_lim2 = (max(ylim) - old_position(1,2))/zoomfactor;
+        ylim   = [old_position(1,2) - y_lim1, old_position(1,2) + y_lim2];
+        set(axs, 'xlim', xlim), set(axs, 'ylim', ylim)
+        % set new camera position
+        new_position = get(axs, 'CurrentPoint');
+        old_camera_target =  get(axs, 'CameraTarget');
+        old_camera_target(3) = cam_pos_Z;
+        new_camera_position = old_camera_target - ...
+            (new_position(1,1:3) - old_camera_target(1,1:3));
+        % adjust camera target and position
+        set(axs, 'cameraposition', new_camera_position(1, 1:3),...
+            'cameratarget', [new_camera_position(1, 1:2), 0]);
+        % we also have to re-set the axes to stretch-to-fill mode
+        set(axs, 'cameraviewanglemode', 'auto',...
+            'camerapositionmode', 'auto',...
+            'cameratargetmode', 'auto');
+        
+        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% FUNCIONES PARA REALIZAR EL PAN
+function pan_click(varargin)
+    
+    MainFig=varargin{1};
+axs=get(MainFig,'CurrentAxes');
+        % double check if these axes are indeed the current axes
+        if get(MainFig, 'currentaxes') ~= axs, return, end
+        % perform appropriate action
+        switch lower(get(MainFig, 'selectiontype'))            
+            % start panning on left click
+            case 'extend' 
+                status = 'down';
+                previous_point = get(axs, 'CurrentPoint');              
+            % reset view on double click
+            case 'open' % double click (left or right)
+                set(axs, 'Xlim', original_xlim,...
+                         'Ylim', original_ylim);  
+            % right click - set new reset state
+%             case 'alt'
+%                 original_xlim = get(axs, 'xlim');
+%                 original_ylim = get(axs, 'ylim');
+        end
+
+    
+    % release mouse button
+    function pan_release(varargin)
+            MainFig=varargin{1};
+axs=get(MainFig,'CurrentAxes');
+        % double check if these axes are indeed the current axes
+        if get(MainFig, 'currentaxes') ~= axs, return, end
+        switch lower(get(MainFig, 'selectiontype')) 
+        % just reset status
+         case 'extend' 
+        status = '';
+        end
+    
+    
+    % move the mouse (with button clicked)
+    function pan_motion(varargin)
+            MainFig=varargin{1};
+axs=get(MainFig,'CurrentAxes');
+        % double check if these axes are indeed the current axes
+        if get(MainFig, 'currentaxes') ~= axs, return, end
+         switch lower(get(MainFig, 'selectiontype')) 
+              case 'extend' 
+        % return if there isn't a previous point
+        if isempty(previous_point), return, end  
+        % return if mouse hasn't been clicked
+        if isempty(status), return, end  
+        % get current location (in pixels)
+        current_point = get(axs, 'CurrentPoint');
+        % get current XY-limits
+        xlim = get(axs, 'xlim');  ylim = get(axs, 'ylim');     
+        % find change in position
+        delta_points = current_point - previous_point;  
+        % adjust limits
+        new_xlim = xlim - delta_points(1); 
+        new_ylim = ylim - delta_points(3); 
+        % set new limits
+        set(axs, 'Xlim', new_xlim); set(axs, 'Ylim', new_ylim);           
+        % save new position
+        previous_point = get(axs, 'CurrentPoint');
+         end
+     
