@@ -48,6 +48,12 @@ This development belongs to the Computer Vision & 3D Modelling Laboratory (3DCo-
 
 Website: https://3dcovim.cms.unex.es/
 
+# Origins
+This work is based on the thesis "Filling techniques in surfaces acquired using 3D scanners" (
+["Técnicas de relleno de superficies adquiridas mediante escáneres 3D"](https://hdl.handle.net/20.500.14468/21263)
+supervised by [Carlos Cerrada Somolinos](https://orcid.org/0000-0002-8591-6581) and [Santiago Salamanca Miño](https://orcid.org/0000-0001-5878-5988) 
+and presented in 2011 at the National University of Distance Education.
+
 # License
 These files are licensed under the Creative Commons Attribution license (CC BY 4.0)
 
