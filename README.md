@@ -3,12 +3,6 @@ The main file of the application, to start the process, is 'regenera_inpainting3
 
 The rest of files are called during the execution.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="">
-  <source media="(prefers-color-scheme: light)" srcset="">
-  <img alt="Shows a feature of this application." src="">
-</picture>
-
 # Features
 The current version of this set of Matlab files provides the following features:
 * Automated Hole Identification: The algorithm automatically identifies "badly sensed" areas or holes in 3D polygonal meshes by detecting boundary edges that are not shared by two triangles (non-manifold edges).
