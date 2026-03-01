@@ -1,7 +1,9 @@
 # Repairing 3D models obtained from range sensors
 The main file of the application, to start the process, is 'regenera_inpainting3.m'.
-
 The rest of files are called during the execution.
+
+Release: 
+[Regenera inpainting v1.0](https://github.com/3dcovim/Repairing-3D-models-obtained-from-range-sensors/releases)
 
 # Features
 The current version of this set of Matlab files provides the following features:
