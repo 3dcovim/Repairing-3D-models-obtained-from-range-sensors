@@ -1,5 +1,7 @@
 # Repairing 3D models obtained from range sensors
-The main file to start the process is 'regenera_inpainting3.m'
+The main file of the application, to start the process, is 'regenera_inpainting3.m'.
+
+The rest of files are called during the execution.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="">
@@ -46,8 +48,7 @@ This development belongs to the Computer Vision & 3D Modelling Laboratory (3DCo-
   <img alt="3DCo-Vim Logo." src="https://3dcovim.cms.unex.es/wp-content/uploads/sites/2/2023/03/cropped-cropped-Imagen23-1-2.png">
 </picture>
 
-Website: https://3dcovim.cms.unex.es/
-
+Website: [https://3dcovim.cms.unex.es/](https://3dcovim.cms.unex.es/)
 # Origins
 This work is based on the thesis "Filling techniques in surfaces acquired using 3D scanners" (
 ["Técnicas de relleno de superficies adquiridas mediante escáneres 3D"](https://hdl.handle.net/20.500.14468/21263)
